@@ -90,9 +90,9 @@ export const Hud: React.FC<{ engine: WorldEngine; onLeave: () => void; worldErro
             <Icon name="vr" size={18} /> VR
           </button>
         )}
-        <div className={`mic ${micState}`} onClick={() => menuBus.toggleMute()} title={L('ミュート（M）', 'Mute (M)')}>
+        {!(engine.ctx.dev && import.meta.env.VITE_OBORO_DEMO === '1') && <div className={`mic ${micState}`} onClick={() => menuBus.toggleMute()} title={L('ミュート（M）', 'Mute (M)')}>
           <Icon name={muted ? 'micOff' : 'mic'} size={22} />
-        </div>
+        </div>}
         <button className="btn icon" onClick={() => menuBus.toggle()} title={L('メニュー（R / Esc）', 'Menu (R / Esc)')}>
           <Icon name="menu" size={22} />
         </button>

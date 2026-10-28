@@ -1,5 +1,15 @@
 # 検証結果
 
+## Pages構成の追加検証（2026-10-28）
+
+`npm run build:pages` の本番クライアントを `/tentenvworld_oboro-yashiki/` サブパスで静的配信し、`npm run test:pages` の実Chromium試験を実行した。公開GitHub Pagesではなくローカルの同一構造である。入口ページから開始、再読込み、全五印、四タブ同期、途中参加、重複鍵、ホスト退出、水中、浮遊、壁、天井、自由跳躍で高台着地、敵の予兆から捕縛、勝敗共有、再開始が通過。主要導線のconsole/page errorとasset 404は0。試験のテレポート・Clickable・時計・敵配置fixtureは下記と同じ。
+
+1440×960の高画質実画面を点検。390×844のAndroid相当エミュレーションで開始ボタンと仮想スティックへのpointer操作を確認した。実Android端末の試験ではない。静的デモに音声通信はなく、不要なマイク取得をしないようにした。
+
+追加証跡は `evidence/pages/`（ローカル生成、CI実行時はbrowser-validation artifact）に保存。4タブの一標本は106 calls / 393,846 triangles / 95 textures / heap 88 MB、SwiftShaderの表示FPSは1。単独高画質の一標本は185 calls / 164,438 triangles / 73 textures / heap 129 MB。視点・人数・影・ミラーパスが異なるため、旧標本とのFPS改善率は算出しない。小物geometry、水紋draw call、影の解像度、二重ミラー描画を削減したが、実GPU/Questの性能保証はしない。
+
+GitHub Actionsのworkflowは用意したが、repo作成前のAPI照会がForbiddenで終了したため、リモートCIと公開URLの外部ブラウザ検証は未実施。公開済みとはしていない。
+
 2026-10-28、Linux / Node.js 24.19.0 / Chromium、GPUはSwiftShader（ソフトウェア描画）。
 
 ## 通過

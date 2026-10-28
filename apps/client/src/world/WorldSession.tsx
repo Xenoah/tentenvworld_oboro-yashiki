@@ -201,7 +201,8 @@ export const WorldSession: React.FC<{ instanceId?: string; devUrl?: string }> = 
         e.session.t.setAudioTrack(track)
         void relay.setMic(track)
       })
-      void e.voice.startMic().then((ok) => {
+      const localDemo = import.meta.env.VITE_OBORO_DEMO === '1' && !!devUrl
+      if (!localDemo) void e.voice.startMic().then((ok) => {
         if (!ok && e.voice.micError) toast(L(`マイク: ${e.voice.micError}`, `Microphone: ${e.voice.micError}`), 'error')
         useMenu.getState().setMuted(e.voice.muted)
       })
@@ -211,6 +212,7 @@ export const WorldSession: React.FC<{ instanceId?: string; devUrl?: string }> = 
           e.player.manualGesture = n === 0 ? [null, null] : [list[n - 1] ?? null, list[n - 1] ?? null]
         },
         mute: () => {
+          if (localDemo) return
           e.voice.setMuted(!e.voice.muted)
           useMenu.getState().setMuted(e.voice.muted)
         },

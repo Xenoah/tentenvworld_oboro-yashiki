@@ -294,6 +294,24 @@
        // ほかのワールド・インスタンスへ移る（ポータル）
        engine.navigate = (target) => {
          if (target.instanceId) joinInstance(target.instanceId)
+@@ -200,7 +201,8 @@
+         e.session.t.setAudioTrack(track)
+         void relay.setMic(track)
+       })
+-      void e.voice.startMic().then((ok) => {
++      const localDemo = import.meta.env.VITE_OBORO_DEMO === '1' && !!devUrl
++      if (!localDemo) void e.voice.startMic().then((ok) => {
+         if (!ok && e.voice.micError) toast(L(`マイク: ${e.voice.micError}`, `Microphone: ${e.voice.micError}`), 'error')
+         useMenu.getState().setMuted(e.voice.muted)
+       })
+@@ -210,6 +212,7 @@
+           e.player.manualGesture = n === 0 ? [null, null] : [list[n - 1] ?? null, list[n - 1] ?? null]
+         },
+         mute: () => {
++          if (localDemo) return
+           e.voice.setMuted(!e.voice.muted)
+           useMenu.getState().setMuted(e.voice.muted)
+         },
 --- a/apps/client/src/ui/hud/Hud.tsx
 +++ b/apps/client/src/ui/hud/Hud.tsx
 @@ -81,8 +81,8 @@
@@ -307,3 +325,15 @@
          </div>
          <div className="grow" />
          {vrOk && (
+@@ -90,9 +90,9 @@
+             <Icon name="vr" size={18} /> VR
+           </button>
+         )}
+-        <div className={`mic ${micState}`} onClick={() => menuBus.toggleMute()} title={L('ミュート（M）', 'Mute (M)')}>
++        {!(engine.ctx.dev && import.meta.env.VITE_OBORO_DEMO === '1') && <div className={`mic ${micState}`} onClick={() => menuBus.toggleMute()} title={L('ミュート（M）', 'Mute (M)')}>
+           <Icon name={muted ? 'micOff' : 'mic'} size={22} />
+-        </div>
++        </div>}
+         <button className="btn icon" onClick={() => menuBus.toggle()} title={L('メニュー（R / Esc）', 'Menu (R / Esc)')}>
+           <Icon name="menu" size={22} />
+         </button>
