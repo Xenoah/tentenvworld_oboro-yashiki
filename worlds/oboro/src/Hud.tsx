@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { useRuntime } from '@tentenv/sdk'
-import { ACTIONS, DIFFICULTIES, KEYS, distance, elapsed, remaining, timeLimit, type GameState } from './game'
+import { ACTIONS, DIFFICULTIES, KEYS, MODES, baseLimit, distance, elapsed, remaining, required, sealBonus, timeLimit, type GameState } from './game'
+import type { Objective } from './Guide'
 import type { VisualSettings } from './Lighting'
 import { play } from './audio'
 
@@ -15,7 +16,7 @@ const panel: CSSProperties = { background: 'linear-gradient(135deg,rgba(13,29,31
 const button: CSSProperties = { border: '1px solid #9f89585c', borderRadius: 3, background: '#233c3cdd', color: '#e6dcc5', padding: '7px 10px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11 }
 
 /** Minimal play HUD: one top bar (time + five seals), a toast, and a slim toolbar. Panels open on demand. */
-export function Hud({ game: g, comfort, setComfort, sound, setSound, help, setHelp, visuals, setVisuals, extra }: { game: HudGame; comfort: boolean; setComfort: (v: boolean) => void; sound: boolean; setSound: (v: boolean) => void; help: boolean; setHelp: (v: boolean) => void; visuals: VisualSettings; setVisuals: (v: VisualSettings) => void; extra?: ReactNode }) {
+export function Hud({ game: g, comfort, setComfort, sound, setSound, help, setHelp, visuals, setVisuals, extra, goal }: { game: HudGame; comfort: boolean; setComfort: (v: boolean) => void; sound: boolean; setSound: (v: boolean) => void; help: boolean; setHelp: (v: boolean) => void; visuals: VisualSettings; setVisuals: (v: VisualSettings) => void; extra?: ReactNode; goal?: Objective }) {
   const rt = useRuntime(), s = g.state
   const [now, setNow] = useState(() => rt.clock().now()), [near, setNear] = useState(true), [visualOpen, setVisualOpen] = useState(false), atLobby = useRef(true)
   useEffect(() => { const t = window.setInterval(() => setNow(rt.clock().now()), 100); return () => window.clearInterval(t) }, [rt])
@@ -34,25 +35,27 @@ export function Hud({ game: g, comfort, setComfort, sound, setSound, help, setHe
     <div className="oboro-top" style={{ ...panel, position: 'absolute', top: 70, left: '50%', transform: 'translateX(-50%)', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 18, borderRadius: 4 }}>
       <div style={{ textAlign: 'center', minWidth: 86 }}>
         <div data-testid="timer" style={{ fontSize: 30, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05, color: low ? '#ff8a6a' : '#f3e7cc' }}>{clock(Math.ceil(left))}</div>
-        <div style={{ fontSize: 9, letterSpacing: 2, color: '#a9bdb6' }}>{DIFFICULTIES[s.difficulty].label}・{Math.min(4, g.players.all.length)}/4人</div>
+        <div style={{ fontSize: 9, letterSpacing: 2, color: '#a9bdb6' }}>{s.mode === 'sprint' ? '疾風・' : ''}{DIFFICULTIES[s.difficulty].label}・{Math.min(4, g.players.all.length)}/4人</div>
       </div>
-      <div data-testid="seals" style={{ display: 'flex', gap: 10 }}>{KEYS.map(k => { const got = s.keys.includes(k.id), split = s.splits?.find(v => v.id === k.id); return <div key={k.id} title={k.name} style={{ textAlign: 'center', width: 30 }}>
+      <div data-testid="seals" style={{ display: 'flex', gap: 10 }}>{KEYS.filter(k => required(s).includes(k.id)).map(k => { const got = s.keys.includes(k.id), split = s.splits?.find(v => v.id === k.id); return <div key={k.id} title={k.name} style={{ textAlign: 'center', width: 30 }}>
         <div style={{ width: 20, height: 20, margin: '2px auto 4px', border: `1.5px solid ${got ? k.color : '#5d706b'}`, background: got ? k.color : 'transparent', boxShadow: got ? `0 0 12px ${k.color}` : 'none', transform: 'rotate(45deg)', animation: got && split?.id === lastSplit?.id && splitAge < 1 ? 'oboro-seal .45s ease-out' : undefined, display: 'grid', placeItems: 'center' }}><span style={{ transform: 'rotate(-45deg)', fontSize: 10, color: got ? '#14211f' : '#9fb0aa' }}>{SHORT[k.id]}</span></div>
         <div style={{ fontSize: 9, color: got ? k.color : '#71847f', fontVariantNumeric: 'tabular-nums' }}>{split ? clock(split.t) : '–'}</div>
       </div> })}</div>
       <div style={{ textAlign: 'right', fontSize: 10, color: '#a9bdb6', minWidth: 54 }}>得点<div data-testid="score" style={{ fontSize: 15, color: '#e8c996' }}>{s.score.toLocaleString()}</div></div>
     </div>
-    {lastSplit && splitAge < 2.5 && running && <div style={{ position: 'absolute', top: 150, left: '50%', transform: 'translateX(-50%)', fontSize: 15, color: '#ffe3a3', textShadow: '0 2px 10px #000', animation: 'oboro-toast 2.5s ease-out forwards' }}>{KEYS.find(k => k.id === lastSplit.id)?.name}　{clock(lastSplit.t)}　<b>+{DIFFICULTIES[s.difficulty].bonus}秒</b></div>}
+    {goal && running && !counting && <div data-testid="objective" style={{ position: 'absolute', top: 136, left: '50%', transform: 'translateX(-50%)', fontSize: 12, color: '#ffe7b0', textShadow: '0 2px 8px #000', whiteSpace: 'nowrap' }}>次：{goal.label}</div>}
+    {lastSplit && splitAge < 2.5 && running && <div style={{ position: 'absolute', top: 160, left: '50%', transform: 'translateX(-50%)', fontSize: 15, color: '#ffe3a3', background: '#0d1d1fcc', padding: '4px 12px', borderRadius: 3, textShadow: '0 2px 10px #000', animation: 'oboro-toast 2.5s ease-out forwards' }}>{KEYS.find(k => k.id === lastSplit.id)?.name}　{clock(lastSplit.t)}　<b>+{sealBonus(s)}秒</b></div>}
     {counting && <div data-testid="countdown" key={count} style={{ position: 'absolute', left: '50%', top: '42%', fontSize: 120, color: '#ffe0a0', textShadow: '0 0 40px #d9a14a, 0 4px 20px #000', animation: 'oboro-pop .5s ease-out forwards' }}>{count}</div>}
     {running && !counting && sinceGo < .9 && <div data-testid="countdown" style={{ position: 'absolute', left: '50%', top: '42%', fontSize: 92, letterSpacing: 12, color: '#fff2c9', textShadow: '0 0 40px #e8a33c', animation: 'oboro-pop .45s ease-out forwards' }}>始め！</div>}
     {!running && <div style={{ ...panel, position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 440, maxWidth: '86vw', padding: '26px 32px', pointerEvents: 'auto', textAlign: 'center' }}>
       <div style={{ fontSize: 11, letterSpacing: 5, color: '#bba57b' }}>{s.phase === 'won' ? 'THE GATE IS OPEN' : s.phase === 'lost' ? 'LOST IN THE MIST' : 'OBORO · THE FIVE SEALS'}</div>
       <h1 style={{ fontSize: 32, fontWeight: 400, letterSpacing: 4, margin: '12px 0' }}>{s.phase === 'won' ? '脱出成功' : s.phase === 'lost' ? '探索失敗' : '朧の屋敷'}</h1>
-      <p style={{ fontSize: 13, lineHeight: 1.8, color: '#afc0b5', margin: '8px 0 14px' }}>{s.phase === 'lobby' ? `${clock(DIFFICULTIES[s.difficulty].limit)}で五つの印を集めて門へ。印に触れるたび +${DIFFICULTIES[s.difficulty].bonus}秒。` : s.reason}</p>
+      <p style={{ fontSize: 13, lineHeight: 1.8, color: '#afc0b5', margin: '8px 0 14px' }}>{s.phase === 'lobby' ? (s.mode === 'sprint' ? `疾風：ランダムな三部屋の印だけを${clock(baseLimit(s))}で。印ごとに +${sealBonus(s)}秒。` : `${clock(baseLimit(s))}で五つの印を集めて門へ。印に触れるたび +${sealBonus(s)}秒。`) : s.reason}</p>
       {s.phase !== 'lobby' && <div style={{ fontSize: 24, color: '#e5c38a', marginBottom: 6 }}>{s.score.toLocaleString()} <span style={{ fontSize: 12 }}>点</span>{s.phase === 'won' && <span style={{ fontSize: 14, marginLeft: 12 }}>タイム {clock(elapsed(s, s.endedAt))}</span>}</div>}
       {s.phase !== 'lobby' && !!s.splits?.length && <div style={{ fontSize: 11, color: '#c9c2a8', marginBottom: 10 }}>{s.splits.map(v => `${SHORT[v.id]} ${clock(v.t)}`).join('　')}　/ 帰還 {s.recoveries} 回</div>}
       {g.best.score > 0 && <div data-testid="best" style={{ fontSize: 11, color: '#9fb5aa', marginBottom: 12 }}>自己ベスト　{g.best.score.toLocaleString()} 点{g.best.time ? `　/　${clock(g.best.time)}` : ''}</div>}
-      <div style={{ display: 'flex', gap: 7, justifyContent: 'center', marginBottom: 14 }}>{Object.entries(DIFFICULTIES).map(([key, c]) => <button key={key} disabled={!g.host} onClick={() => g.send('difficulty', key)} style={{ ...button, fontSize: 12, padding: '8px 12px', background: s.difficulty === key ? '#8a6e43' : '#233c3c' }}>{c.label} {clock(c.limit)}</button>)}</div>
+      <div style={{ display: 'flex', gap: 7, justifyContent: 'center', marginBottom: 8 }}>{(Object.entries(MODES) as [keyof typeof MODES, { label: string }][]).map(([key, c]) => <button key={key} data-testid={`mode-${key}`} disabled={!g.host} onClick={() => g.send('mode', key)} style={{ ...button, fontSize: 12, padding: '8px 14px', background: (s.mode ?? 'standard') === key ? '#7a4f38' : '#233c3c' }}>{c.label}{key === 'sprint' ? '（3部屋・3分）' : '（5部屋）'}</button>)}</div>
+      <div style={{ display: 'flex', gap: 7, justifyContent: 'center', marginBottom: 14 }}>{Object.entries(DIFFICULTIES).map(([key, c]) => <button key={key} disabled={!g.host} onClick={() => g.send('difficulty', key)} style={{ ...button, fontSize: 12, padding: '8px 12px', background: s.difficulty === key ? '#8a6e43' : '#233c3c' }}>{c.label}{s.mode === 'sprint' ? '' : ` ${clock(c.limit)}`}</button>)}</div>
       <button data-testid="start" disabled={!g.host || !near} onClick={() => g.send(s.phase === 'lobby' ? 'start' : 'restart')} style={{ ...button, width: '100%', background: '#ac8450', color: '#101d20', fontSize: 15, padding: 13, fontWeight: 700 }}>{g.host ? (s.phase === 'lobby' ? '探索を始める' : 'もう一度挑む') : '主催者の開始を待っています'}</button>
       <p style={{ fontSize: 10, color: '#8da69c', margin: '12px 0 0' }}>1人でも、4人でも。印と仕掛けは全員で共有されます。</p>
     </div>}
@@ -67,7 +70,7 @@ export function Hud({ game: g, comfort, setComfort, sound, setSound, help, setHe
       <p>制限時間は短め。印を一つ取るごとに時間が延びます。残り1分で太鼓が速まり、画面の縁が赤く光ります。</p>
       {KEYS.map(k => <p key={k.id}>{k.hint}</p>)}
       <p>Shiftでダッシュ、Spaceで跳躍。下降中、足元が地面から75cm以内になったらXか「静音着地」を一度押す。早押し・押し忘れは足音となり、忍者が音の方向を捜索します。</p>
-      <p>忍者の足元の扇形が視界です（赤は追跡中）。扇の外・背後は気づかれにくく、屏風や庭石の陰は見通せません。中庭に落ちている<b>煙玉</b>に触れて拾い、B（または画面の煙玉ボタン）で周囲6mの忍者を3秒止められます。</p><p>忍者は攻撃前に構えます。距離を取るか陰へ。帰還は -150 点。</p>
+      <p>忍者の足元の扇形が視界です（赤は追跡中）。扇の外・背後は気づかれにくく、屏風や庭石の陰は見通せません。中庭に落ちている<b>煙玉</b>に触れて拾い、B（または画面の煙玉ボタン）で周囲6mの忍者を3秒止められます。</p><p>忍者は攻撃前に構えます。距離を取るか陰へ。見習い・忍びでは捕まると<b>牢</b>へ（-200点）。仲間が錠に触れるか、少し待てば出られます。上忍は捕まると全員失敗。帰還は -150 点。</p><p>「ナビ」は足元の矢印と光の柱で次の目的地を示します。</p>
       <p>{rt.locomotion ? '泳ぎ・浮遊：向いた方向へ WASD、Space 上昇、Q 下降。' : '標準クライアントでは泳ぎ・浮遊・壁歩きの代わりに木の足場とワープを使います。'}</p>
       <p style={{ color: '#8ca69b' }}>コード・素材：AGPL-3.0-only / TenTenV contributors + Oboro contributors。保証なし。</p></div>}
   </div></Html>

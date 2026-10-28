@@ -50,8 +50,8 @@ test('terminal outcome cannot be overwritten by attacks or later commands',()=>{
  let lost=tick(start(),[p],t0+COUNTDOWN+DIFFICULTIES.normal.limit*1000+1);assert.equal(lost.phase,'lost')
  assert.equal(act(lost,'exit'),lost);assert.equal(act(won,'key:wood',KEYS[0].pos),won)
 })
-test('attack has windup, requires range and clear sight; retreat cancels',()=>{
- let s=start();s.protectedUntil.host=0;s.updatedAt=t0+20000;s.enemies[0].pos=[6,0,0]
+test('attack has windup, requires range and clear sight; retreat cancels (上忍 capture ends the run)',()=>{
+ let s=start('hard');s.protectedUntil.host=0;s.updatedAt=t0+20000;s.enemies[0].pos=[6,0,0]
  const target:Player={id:'host',pos:[6,0,.8]};s=tick(s,[target],t0+20200);assert.equal(s.phase,'running');assert.equal(s.enemies[0].mode,'warning')
  s=tick(s,[{id:'host',pos:[6,0,10]}],t0+23000);assert.equal(s.phase,'running');assert.equal(s.enemies[0].mode,'patrol')
  s.enemies[0].pos=[6,0,0];s=tick(s,[target],t0+24000);s=tick(s,[target],t0+26500);assert.equal(s.phase,'lost')
@@ -93,4 +93,26 @@ test('ninjas see a forward cone (plus close range); byobu blocks sight; smoke st
  s=tick(s,[{id:'host',pos:[6,0,1.2]}],t0+21000);assert.equal(s.enemies[0].mode,'stunned');assert.equal(s.phase,'running')
  assert.equal(command(s,{run:s.run,kind:'smoke:use'},{id:'host',pos:[6,0,3]},t0+21000,true),s,'no bomb left')
  s=tick(s,[{id:'host',pos:[6,0,1.2]}],t0+20600+3100);assert.notEqual(s.enemies[0].mode,'stunned')
+})
+test('casual capture: 見習い/忍び send the caught player to the cell; a teammate or the timer frees them',async()=>{
+ const {JAIL_TIME,JAIL_TIME_TEAM,JAIL_LOCK,CAPTURE_PENALTY}=await import('../worlds/oboro/src/game.ts')
+ const catchAt=(s:GameState,players:Player[],at:number)=>{s.enemies[0]={pos:[6,0,0],target:null,alertAt:0,waypoint:0,mode:'patrol',yaw:0};s.enemies[1].pos=[-8,0,-9];for(const pl of players)s.protectedUntil[pl.id]=0;s.updatedAt=at
+   s=tick(s,players,at+200);return tick(s,players,at+200+(DIFFICULTIES[s.difficulty].windup+.5)*1000)}
+ const me:Player={id:'host',pos:[6,0,.8]};let s=catchAt(start('easy'),[me],t0+20000)
+ assert.equal(s.phase,'running');assert.ok(s.jailed.host);assert.equal(s.captures,1)
+ assert.equal(command(s,{run:s.run,kind:'key:fire'},{id:'host',pos:actionPos(s,'key:fire')!},t0+24000,true),s,'jailed players cannot act')
+ s=tick(s,[{id:'host',pos:[-15.6,0,10]}],s.jailed.host+1);assert.equal(s.jailed.host,undefined,'solo auto release')
+ const solved=act(solve(start('easy')),'exit');const penal=act(solve(catchAt(start('easy'),[me],t0+20000)),'exit')
+ assert.ok(solved.score-penal.score>=CAPTURE_PENALTY-1)
+ let t=catchAt(start('normal'),[me,{id:'guest',pos:[0,0,12]}],t0+20000);assert.ok(t.jailed.host-(t0+20000)>JAIL_TIME.normal,'team cell waits for a rescuer')
+ assert.ok(t.jailed.host<=t0+23000+JAIL_TIME_TEAM)
+ t=command(t,{run:t.run,kind:'free'},{id:'guest',pos:[JAIL_LOCK[0]+.5,0,JAIL_LOCK[2]]},t0+25000,false);assert.deepEqual(t.jailed,{})
+})
+test('疾風 mode: three random rooms, three minutes, gate opens with those seals only',async()=>{
+ const {MODES,required,timeLimit}=await import('../worlds/oboro/src/game.ts')
+ let s=command(initialState(0,'normal'),{run:0,kind:'mode',value:'sprint'},p,t0,true);s=command(s,{run:0,kind:'start'},p,t0,true)
+ assert.equal(s.mode,'sprint');assert.equal(timeLimit(s),MODES.sprint.limit);const need=required(s);assert.equal(need.length,3)
+ const other=KEYS.map(k=>k.id).find(id=>!need.includes(id))!;s=solve(s);assert.equal(s.keys.length,3);assert.ok(!s.keys.includes(other))
+ assert.equal(act(s,`key:${other}`),s);s=act(s,'exit');assert.equal(s.phase,'won')
+ s=act(s,'restart',p.pos);assert.equal(s.mode,'sprint')
 })

@@ -21,7 +21,7 @@ const KEY_SPOTS: Record<string, V3[]> = {
 export const SCROLL_SPOTS: [V3, number][] = [[[-8.75, 1.75, 12.6], Math.PI / 2], [[-8, 1.75, -13.4], 0], [[-9.05, 1.75, -4], Math.PI / 2]]
 const COIN_SPOTS: V3[] = [
   [0, .6, -4.5], [5, .6, -1], [-4, .6, -3.6], [2, .6, -9.6], [-6, .6, -10], [6.5, .6, 6], [-1, .6, 5], [4.5, .6, 1.4], [-5.5, .6, 1.5], [6.8, .6, -7.2],
-  [-12, .6, -4], [13, .6, -1.5], [0, .6, -23.6], [18, .6, -23], [-20.3, .6, -22], [-7, .6, -20], [12, .6, 8.4], [-14.6, .6, 9],
+  [-12, .6, -4], [13, .6, -1.5], [0, .6, -23.6], [18, .6, -23], [-20.3, .6, -22], [-7, .6, -20], [12, .6, 8.4], [-19, .6, 12.4],
 ]
 const courtyard = (p: V3) => Math.abs(p[0]) < 9 && p[2] > -11 && p[2] < 8
 const centre = (p: V3) => Math.abs(p[0]) < 6 && p[2] > -9 && p[2] < 6
@@ -29,7 +29,7 @@ const centre = (p: V3) => Math.abs(p[0]) < 6 && p[2] > -9 && p[2] < 6
 function rng(seed: number) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
 function shuffle<T>(items: readonly T[], r: () => number) { const a = [...items]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
 
-export type Layout = { runeOrder: Rune[]; starOrder: number[]; valves: number[]; keyPos: Record<string, V3>; coins: { pos: V3; value: number }[]; scroll: number }
+export type Layout = { runeOrder: Rune[]; starOrder: number[]; valves: number[]; keyPos: Record<string, V3>; coins: { pos: V3; value: number }[]; scroll: number; sprint: string[] }
 const cache = new Map<number, Layout>()
 /** Seed 0 is the classic fixed layout (tests and the lobby preview). */
 export function layoutFor(seed: number): Layout {
@@ -42,6 +42,8 @@ export function layoutFor(seed: number): Layout {
     starOrder: fixed ? [0, 1, 2] : shuffle([0, 1, 2], r),
     valves: fixed ? [0, 1] : shuffle([0, 1, 2, 3], r).slice(0, 2).sort(),
     keyPos, coins, scroll: fixed ? 2 : Math.floor(r() * SCROLL_SPOTS.length),
+    // 疾風 mode: three of the five rooms, drawn last so the classic fields keep their values.
+    sprint: fixed ? ['wood', 'fire', 'water'] : shuffle(Object.keys(KEY_SPOTS), r).slice(0, 3),
   }
   if (cache.size > 32) cache.clear()
   cache.set(seed, layout); return layout

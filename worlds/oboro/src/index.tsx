@@ -12,9 +12,10 @@ import { Taiko, play, setCuesEnabled, type Mood } from './audio'
 import { SoftLighting, DEFAULT_VISUALS, type VisualSettings } from './Lighting'
 import { Architecture, useMaterials, type Materials } from './Architecture'
 import { RUNES, RUNE_NAMES, SCROLL_SPOTS, VALVE_SPOTS } from './layout'
-import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, layoutOf, command, distance, elapsed, initialState, remaining, tick, type Command, type GameState, type V3 } from './game'
+import { ACTIONS, DIFFICULTIES, JAIL, JAIL_EXIT, JAIL_LOCK, KEYS, MODES, SPAWN, layoutOf, ready, required, command, distance, elapsed, initialState, remaining, tick, type Command, type GameState, type V3 } from './game'
 import { Hud, clock } from './Hud'
 import { Ninja, Smoke } from './Ninja'
+import { Guide, STAR_PAD, STAR_REST, type Objective } from './Guide'
 
 const STATE = 'w:oboro:game'
 function useGame(){
@@ -50,10 +51,15 @@ function useGame(){
       setMessage(state.phase==='running'?'印・星・光る輪には触れるだけ。橙の輪は縁側の縄。忍者は中庭を巡回する。':state.reason||'準備ができたら探索を始めよう。')
       if(state.phase==='won'){const time=Math.round(elapsed(state,state.endedAt));const next={score:Math.max(best.score,state.score),time:best.time?Math.min(best.time,time):time};setBest(next);void store.player.set('oboro-best',next.score).then(()=>store.player.set('oboro-best-time',next.time)).catch(()=>{})}
     }
-    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/5`);play(rt.audioListener(),'seal')}
+    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/${required(state).length}${ready(state)?' — 脱出門へ！':''}`);play(rt.audioListener(),'seal')}
     if(last.current.run===state.run&&last.current.stars<state.stars.length)play(rt.audioListener(),'star')
     last.current={run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length}
   },[state.run,state.phase,state.keys.length,state.stars.length])
+  // The cell: teleport in when caught (casual difficulties), out when freed.
+  const jailed=!!state.jailed?.[rt.self().peerId],wasJailed=useRef(false)
+  useEffect(()=>{if(jailed&&!wasJailed.current){rt.locomotion?.set(null);rt.teleport(JAIL,Math.PI/2);play(rt.audioListener(),'alert');setMessage(state.roster.length>1?'牢に入れられた！ 仲間が錠に触れれば出られる（-200点）':'牢に入れられた… 少し待てば抜け出せる（-200点）')}
+    if(!jailed&&wasJailed.current&&state.phase==='running'){rt.teleport(JAIL_EXIT,Math.PI/2);setMessage('牢を抜け出した。数秒は忍者に見つからない')}
+    wasJailed.current=jailed},[jailed])
   // Spotted / smoke cues follow shared state, so every peer hears its own alert.
   const me=rt.self().peerId,spotted=state.phase==='running'&&state.enemies.some(e=>e.target===me&&(e.mode==='chase'||e.mode==='warning')),wasSpotted=useRef(false),clouds=useRef(0)
   useEffect(()=>{if(spotted&&!wasSpotted.current){play(rt.audioListener(),'alert');setMessage('見つかった！ 屏風や庭石の陰へ。煙玉 [B] で目くらまし')}wasSpotted.current=spotted},[spotted])
@@ -67,7 +73,7 @@ type Game=ReturnType<typeof useGame>
 export default function World(){return <><RigidBody type="fixed" colliders={false}><CuboidCollider args={[9,.1,3]} position={[0,-.1,12.5]}/></RigidBody><Suspense fallback={null}><Oboro/></Suspense></>}
 function Oboro(){
   const m=useMaterials(),game=useGame(),device=useDevice(),rt=useRuntime(),motion=useRef<MovementVisual>({intensity:0,mode:'idle',dust:0})
-  const [comfort,setComfort]=useState(true),[sound,saveSound]=useState(false),[help,setHelp]=useState(false),[visuals,setVisuals]=useState<VisualSettings>(DEFAULT_VISUALS)
+  const [nav,setNav]=useState(true),[goal,setGoal]=useState<Objective>(null),[comfort,setComfort]=useState(true),[sound,saveSound]=useState(false),[help,setHelp]=useState(false),[visuals,setVisuals]=useState<VisualSettings>(DEFAULT_VISUALS)
   const setSound=(value:boolean)=>{saveSound(value);if(value)void rt.audioListener().context.resume().catch(()=>{})}
   return <>
     <color attach="background" args={['#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
@@ -85,8 +91,9 @@ function Oboro(){
     <Smoke state={game.state} m={m} send={game.send} now={()=>rt.clock().now()}/>
     <Music game={game} sound={sound}/>
     <SealBurst state={game.state}/>
+    <Guide state={game.state} enabled={nav} pads={comfort||!rt.locomotion} onChange={setGoal}/>
     {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
-    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} extra={game.held>0&&game.state.phase==='running'?<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>:undefined}/>}
+    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} goal={nav?goal:null} extra={<>{game.held>0&&game.state.phase==='running'&&<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>}<button data-testid="nav" onClick={()=>setNav(!nav)} style={{border:'1px solid #9f89585c',borderRadius:3,background:'#233c3cdd',color:'#e6dcc5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>{nav?'ナビ：入':'ナビ：切'}</button></>}/>}
   </>
 }
 function Button3D({text,position,onClick,material,width=1.1,rotation}:{text:string;position:V3;onClick:()=>void;material:T.Material;width?:number;rotation?:V3}){
@@ -100,7 +107,7 @@ function Board({game:g,comfort,setComfort,sound,setSound,materials:m}:{game:Game
   return <group position={[-4.6,0,10.5]} rotation={[0,.35,0]} scale={.8}>
     <mesh position={[0,1.8,0]} material={m.darkwood} castShadow><boxGeometry args={[5.3,3.25,.2]}/></mesh>
     <TextPlane text="朧 の 屋 敷" width={4.3} lineHeight={.42} bold position={[0,2.65,.12]} color="#e8c996"/>
-    <TextPlane text={`OBORO  /  THE HOUSE OF FIVE SEALS\n${s.phase==='running'?`探索中　${s.keys.length}/5 印　　残り ${clock(left)}`:s.phase==='won'?`脱出成功　${s.score} 点`:s.phase==='lost'?'探索失敗 — もう一度、夜の屋敷へ':'一〜四人協力脱出 / 操作は照準＋クリック・トリガー'}`} width={4.6} lineHeight={.14} position={[0,2.04,.13]} color="#d4d1bc"/>
+    <TextPlane text={`OBORO  /  THE HOUSE OF FIVE SEALS\n${s.phase==='running'?`探索中　${s.keys.length}/${required(s).length} 印　　残り ${clock(left)}`:s.phase==='won'?`脱出成功　${s.score} 点`:s.phase==='lost'?'探索失敗 — もう一度、夜の屋敷へ':'一〜四人協力脱出 / 操作は照準＋クリック・トリガー'}`} width={4.6} lineHeight={.14} position={[0,2.04,.13]} color="#d4d1bc"/>
     <Button3D text={s.phase==='lobby'?'探索を始める':s.phase==='running'?'玄関へ帰還':'再挑戦'} position={[0,1.2,.2]} width={1.5} material={m.red} onClick={()=>g.send(s.phase==='lobby'?'start':s.phase==='running'?'recover':'restart')}/>
     <Button3D text={`難易度：${DIFFICULTIES[s.difficulty].label}`} position={[-1.65,1.2,.2]} width={1.6} material={m.ink} onClick={()=>{const keys=['easy','normal','hard'];g.send('difficulty',keys[(keys.indexOf(s.difficulty)+1)%3])}}/>
     <Button3D text={comfort?'快適移動：入':'快適移動：切'} position={[1.65,1.2,.2]} width={1.6} material={m.ink} onClick={()=>setComfort(!comfort)}/>
@@ -110,7 +117,7 @@ function Board({game:g,comfort,setComfort,sound,setSound,materials:m}:{game:Game
 }
 function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
   const rt=useRuntime(),s=g.state,running=s.phase==='running'
-  const keyActive=(id:string)=>running&&!s.keys.includes(id)&&(id!=='wood'||s.door)&&(id!=='water'||s.valves.length===2)&&(id!=='void'||s.stars.length===3)
+  const need=required(s),keyActive=(id:string)=>running&&need.includes(id)&&!s.keys.includes(id)&&(id!=='wood'||s.door)&&(id!=='water'||s.valves.length===2)&&(id!=='void'||s.stars.length===3)
   const warp=(p:V3,look=0)=>{if(!running)return;markWarp();rt.locomotion?.set(null);rt.teleport(p,look);play(rt.audioListener(),'warp')}
   // Comfort mode and the standard client use warp pads; the extended client without comfort uses real swimming/floating.
   const pads=comfort||!rt.locomotion,l=layoutOf(s),[scrollPos,scrollYaw]=SCROLL_SPOTS[l.scroll]
@@ -132,7 +139,7 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
       </Clickable>
       {/* Touching the seal takes it: run through without stopping to aim. */}
       <Touch position={[0,-.2,0]} size={[2.2,2.6,2.2]} enabled={keyActive(k.id)} onEnter={()=>g.send(`key:${k.id}`)}/>
-      {!s.keys.includes(k.id)&&<FaceCamera position={[0,.65,0]}><TextPlane text={k.name} width={.9} lineHeight={.14} color={k.color}/></FaceCamera>}
+      {!s.keys.includes(k.id)&&<FaceCamera position={[0,.65,0]}><TextPlane text={need.includes(k.id)?k.name:`${k.name}（今回は不要）`} width={need.includes(k.id)?.9:1.6} lineHeight={.14} color={need.includes(k.id)?k.color:'#7f8a86'}/></FaceCamera>}
     </group>)}
     <TextPlane text="二　跳躍の庭\n踏切台を踏めば高台へ" width={3} lineHeight={.25} position={[15,2,-1]} color="#efc589"/>
     {/* The extended client keeps the real jump impulse when comfort is off. */}
@@ -174,8 +181,9 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
       <Pad position={[x,.14,8.8]} label="縄で北の廊下へ" color="#e9a560" arrow={0} onEnter={()=>warp([x,.2,-10],0)} enabled={running}/>
       <Pad position={[x,.06,-12.2]} label="縄で玄関側へ" color="#e9a560" arrow={Math.PI} onEnter={()=>warp([x,.25,7.2],Math.PI)} enabled={running}/>
     </group>)}
-    <Button3D text={s.keys.length===5?'五印を納め、脱出':'脱出門 / 五つの印が必要'} position={ACTIONS.exit} rotation={[0,Math.PI,0]} width={2.7} material={s.keys.length===5?m.brass:m.red} onClick={()=>g.send('exit')}/>
-    <Touch position={[0,0,16.4]} size={[3,2.4,1.4]} enabled={running&&s.keys.length===5} onEnter={()=>g.send('exit')}/>
+    <Button3D text={ready(s)?(s.mode==='sprint'?'三印を納め、脱出':'五印を納め、脱出'):`脱出門 / ${s.mode==='sprint'?'三':'五'}つの印が必要`} position={ACTIONS.exit} rotation={[0,Math.PI,0]} width={2.7} material={ready(s)?m.brass:m.red} onClick={()=>g.send('exit')}/>
+    <Touch position={[0,0,16.4]} size={[3,2.4,1.4]} enabled={running&&ready(s)} onEnter={()=>g.send('exit')}/>
+    <Jail state={s} m={m} send={g.send}/>
     <TextPlane text="忍者は中庭を巡回。玄関・縁側・試練の部屋は安全。" width={6} lineHeight={.14} position={[0,3.2,8]} color="#c8d4c8"/>
     {running&&l.coins.map((c,i)=>!s.coins?.includes(i)&&<Coin key={`${s.run}:${i}`} pos={c.pos} value={c.value} m={m} onTouch={()=>g.send(`coin:${i}`)}/>)}
   </>
@@ -199,8 +207,24 @@ function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolea
     </>}
   </>
 }
-const STAR_REST:V3[]=[[-2,1,-17],[2,2.8,-20],[-2,4.6,-21]],STAR_PAD:V3[]=[[-2.65,.93,-16.35],[2.65,2.73,-19.35],[-2.65,4.53,-20.35]]
 /** Spinning gold koban; touch to bank its points (more in the open courtyard). */
+/** Bamboo-barred cell beside the study; the brass lock outside frees everyone inside. */
+function Jail({state:s,m,send}:{state:GameState;m:Materials;send:(kind:string)=>void}){
+  const rt=useRuntime(),occupied=Object.keys(s.jailed??{}).length>0,[now,setNow]=useState(0),mine=s.jailed?.[rt.self().peerId]
+  useFrame(()=>{if(mine){const t=Math.ceil((mine-rt.clock().now())/1000);if(t!==now)setNow(t)}})
+  const [x,,z]=JAIL,bars:V3[]=[]
+  for(let i=0;i<=6;i++){const o=-1.5+i*.5;bars.push([x+o,1.2,z-1.5],[x+o,1.2,z+1.5],[x-1.5,1.2,z+o]);if(Math.abs(o)>.4)bars.push([x+1.5,1.2,z+o])}
+  return <group>
+    <RigidBody type="fixed" colliders={false}>{([[[x,1.3,z-1.55],[1.6,1.3,.06]],[[x,1.3,z+1.55],[1.6,1.3,.06]],[[x-1.55,1.3,z],[.06,1.3,1.6]],[[x+1.55,1.3,z],[.06,1.3,1.6]],[[x,2.65,z],[1.6,.06,1.6]]] as [V3,V3][]).map(([p,a],i)=><CuboidCollider key={i} args={a} position={p}/>)}</RigidBody>
+    {bars.map((p,i)=><mesh key={i} position={p} material={m.moss} castShadow><cylinderGeometry args={[.045,.045,2.4,8]}/></mesh>)}
+    {[-1.5,1.5].map(o=><mesh key={o} position={[x,2.45,z+o]} material={m.darkwood}><boxGeometry args={[3.2,.12,.12]}/></mesh>)}
+    <mesh position={[x,2.62,z]} material={m.roof}><boxGeometry args={[3.4,.1,3.4]}/></mesh>
+    <FaceCamera position={[x,3,z]}><TextPlane text={occupied?'牢（仲間が中にいる）':'牢'} width={1.8} lineHeight={.18} color={occupied?'#ff9c7a':'#c9c1a8'}/></FaceCamera>
+    <group position={[JAIL_LOCK[0],1,JAIL_LOCK[2]]}><mesh material={m.brass}><boxGeometry args={[.22,.28,.12]}/></mesh><mesh position={[0,.2,0]} material={m.brass}><torusGeometry args={[.08,.02,6,14,Math.PI]}/></mesh></group>
+    <Pad position={[JAIL_LOCK[0]+.3,.08,JAIL_LOCK[2]]} radius={.45} label="錠に触れて仲間を出す" color="#ff9c7a" enabled={s.phase==='running'&&occupied&&!mine} onEnter={()=>send('free')}/>
+    {mine&&<FaceCamera position={[x,1.8,z]}><TextPlane text={`あと ${Math.max(0,now)} 秒`} width={1.2} lineHeight={.2} color="#ffe0a0"/></FaceCamera>}
+  </group>
+}
 function Coin({pos,value,m,onTouch}:{pos:V3;value:number;m:Materials;onTouch:()=>void}){
   const ref=useRef<T.Group>(null)
   useFrame(({clock})=>{if(ref.current){ref.current.rotation.y=clock.elapsedTime*2.4;ref.current.position.y=pos[1]+Math.sin(clock.elapsedTime*3+pos[0])*.05}})
