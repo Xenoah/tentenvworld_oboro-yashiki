@@ -242,12 +242,12 @@
    build: {
 --- a/apps/client/src/main.tsx
 +++ b/apps/client/src/main.tsx
-@@ -1,5 +1,19 @@
+@@ -1,5 +1,22 @@
  import { createRoot } from 'react-dom/client'
  import { App } from './App'
  import './ui/styles.css'
 +import { useApp } from './state/app'
-+import { useSettings } from './state/settings'
++import { useSettings, isMobileDevice } from './state/settings'
 +import { useTools } from './features/tools'
 +
 +// A build-time entry for the self-contained Pages demo; the official runtime stays intact.
@@ -256,7 +256,10 @@
 +  useApp.getState().setScreen({ kind: 'dev', worldUrl: new URL('../world/', base).href })
 +  useTools.setState({ faceMirror: false })
 +  try {
-+    if (!localStorage.getItem('ttv.settings.v1')) useSettings.getState().set({ quality: 'medium', renderScale: 1, shadows: true })
++    if (!localStorage.getItem('ttv.settings.v1')) {
++      const mobile=isMobileDevice()
++      useSettings.getState().set({ quality: mobile?'low':'medium', renderScale: mobile?.85:1, shadows: !mobile })
++    }
 +  } catch { /* Storage may be unavailable; current in-memory defaults still work. */ }
 +  useSettings.getState().set({ autoEnterVR: false, startMuted: true })
 +}

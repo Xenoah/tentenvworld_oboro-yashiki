@@ -6,6 +6,8 @@
 
 1440×960の高画質実画面を点検。390×844のAndroid相当エミュレーションで開始ボタンと仮想スティックへのpointer操作を確認した。実Android端末の試験ではない。静的デモに音声通信はなく、不要なマイク取得をしないようにした。
 
+最初のGitHub Actions実行では全ゲーム導線が通過し、最後の高画質スクリーンショットのみ30秒でtimeoutになった。CIの撮影は1024×720・中画質・倍率0.7・影なしとし、ローカルの高画質点検と区別する。ゲームの勝敗/同期/特殊移動チェックは省略していない。モバイルの初期設定も低画質・影なしとし、保存済みのユーザー設定は尊重する。
+
 追加証跡は `evidence/pages/`（ローカル生成、CI実行時はbrowser-validation artifact）に保存。4タブの一標本は106 calls / 393,846 triangles / 95 textures / heap 88 MB、SwiftShaderの表示FPSは1。単独高画質の一標本は185 calls / 164,438 triangles / 73 textures / heap 129 MB。視点・人数・影・ミラーパスが異なるため、旧標本とのFPS改善率は算出しない。小物geometry、水紋draw call、影の解像度、二重ミラー描画を削減したが、実GPU/Questの性能保証はしない。
 
 GitHub Actionsのworkflowは用意したが、repo作成前のAPI照会がForbiddenで終了したため、リモートCIと公開URLの外部ブラウザ検証は未実施。公開済みとはしていない。
