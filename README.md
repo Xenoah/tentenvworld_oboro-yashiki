@@ -4,7 +4,7 @@ TenTenV公式テンプレートを基にした、1〜4人の協力型忍者屋�
 
 ![中庭の実画面](evidence/10-courtyard-high.png)
 
-GitHub Pages用の静的デモ構成・CI・サブパスでのブラウザ試験を追加しています。対象名は `Xenoah/tentenvworld_oboro-yashiki`。**リポジトリ作成と公開はまだ未完了**です。[Pages導入と検証手順](docs/PAGES.md)を参照してください。
+GitHub Pages用の静的デモ構成・CI・サブパスでのブラウザ試験を追加しています。対象名は `Xenoah/tentenvworld_oboro-yashiki`。Publicリポジトリとソースの公開は許可済みです。公開状態はGitHub Actionsのdeploy結果で確認してください。[Pages導入と検証手順](docs/PAGES.md)を参照してください。
 
 ## 最短で起動
 

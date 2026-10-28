@@ -3,11 +3,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      publish_corresponding_source:
-        description: 'Publish demo and its AGPL corresponding source ZIP (source ZIP becomes public)'
-        type: boolean
-        default: false
 permissions:
   contents: read
 concurrency:
@@ -41,7 +36,6 @@ jobs:
         with:
           path: dist-pages
   deploy:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_corresponding_source
     needs: verify
     runs-on: ubuntu-latest
     permissions:

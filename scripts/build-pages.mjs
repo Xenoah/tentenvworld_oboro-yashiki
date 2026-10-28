@@ -18,6 +18,7 @@ cpSync(join(root,'web/index.html'),join(out,'index.html'))
 cpSync(join(root,'evidence/11-architecture.png'),join(out,'courtyard.png'))
 cpSync(join(root,'releases/oboro-yashiki.ttvw'),join(out,'oboro-yashiki.ttvw'))
 cpSync(join(root,'LICENSE'),join(out,'LICENSE.txt'))
+execFileSync(process.execPath,[join(root,'scripts/collect-licenses.mjs'),join(out,'THIRD_PARTY_LICENSES.txt')],{cwd:root,stdio:'inherit'})
 writeFileSync(join(out,'.nojekyll'),'')
 // AGPL corresponding source accompanies the publicly served client even for a private repo.
 execFileSync('git',['archive','--format=zip','--output='+join(out,'oboro-source.zip'),'HEAD'],{cwd:root})

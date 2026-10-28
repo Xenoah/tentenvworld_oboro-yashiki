@@ -1,0 +1,44 @@
+name: Publish OBORO release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: oboro-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verify version and tag
+        run: node -e 'const p=require("./package.json");if(process.env.GITHUB_REF_NAME!=="v"+p.version)throw Error("Tag/version mismatch")'
+      - run: npm run typecheck && npm test
+      - run: npm run build:pages
+      - run: npx playwright-core install --with-deps chromium
+      - name: Browser validation
+        run: |
+          npm run preview:pages > /tmp/oboro-pages.log 2>&1 &
+          npm run test:pages
+      - run: npm run package:release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-browser-validation
+          path: evidence/pages/
+          retention-days: 7
+      - name: Publish release and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" releases-out/* --verify-tag --title "朧の屋敷 — OBORO $GITHUB_REF_NAME" --notes-file docs/RELEASE_NOTES.md

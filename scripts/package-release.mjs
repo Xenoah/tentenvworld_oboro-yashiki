@@ -1,0 +1,28 @@
+import { execFileSync } from 'node:child_process'
+import { cpSync,mkdirSync,readFileSync,writeFileSync,readdirSync } from 'node:fs'
+import { resolve,join,relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
+import { zipSync } from 'fflate'
+const root=resolve(fileURLToPath(new URL('..',import.meta.url)))
+const version=JSON.parse(readFileSync(join(root,'package.json'),'utf8')).version
+if(!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version))throw Error('Invalid version')
+const out=resolve(process.argv[2]||join(root,'releases-out'));mkdirSync(out,{recursive:true})
+const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()
+const build=JSON.parse(readFileSync(join(root,'dist-pages/build.json'),'utf8'))
+if(build.commit!==commit)throw Error('Run build:pages at the release commit first')
+const assets=[]
+for(const [from,to]of [
+ ['dist-pages/oboro-source.zip',`oboro-v${version}-source.zip`],
+ ['releases/oboro-yashiki.ttvw',`oboro-yashiki-v${version}.ttvw`],
+ ['dist-pages/LICENSE.txt','LICENSE.txt'],
+ ['dist-pages/THIRD_PARTY_LICENSES.txt','THIRD_PARTY_LICENSES.txt'],
+ ['docs/RELEASE_NOTES.md','RELEASE_NOTES.md'],
+]){cpSync(join(root,from),join(out,to));assets.push(to)}
+const files={}
+const walk=dir=>{for(const e of readdirSync(dir,{withFileTypes:true})){const p=join(dir,e.name);if(e.isDirectory())walk(p);else files[relative(join(root,'dist-pages'),p)]=[readFileSync(p),{level:/\.(png|webp|zip|ttvw|vrm|woff2)$/i.test(e.name)?0:6}]}}
+walk(join(root,'dist-pages'));const demo=`oboro-v${version}-pages.zip`;writeFileSync(join(out,demo),zipSync(files));assets.push(demo)
+writeFileSync(join(out,'RELEASE_BUILD.json'),JSON.stringify({version,tag:`v${version}`,commit,upstream:build.upstream,transport:build.transport,vrHardwareTested:false,internetMultiplayerTested:false},null,2)+'\n');assets.push('RELEASE_BUILD.json')
+const sums=assets.map(n=>`${createHash('sha256').update(readFileSync(join(out,n))).digest('hex')}  ${n}`).join('\n')+'\n'
+writeFileSync(join(out,'SHA256SUMS'),sums)
+console.log(JSON.stringify({version,commit,directory:out,assets:[...assets,'SHA256SUMS']},null,2))

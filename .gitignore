@@ -1,5 +1,6 @@
 node_modules/
 dist-pages/
+releases-out/
 evidence/pages/
 **/dist/
 *.log

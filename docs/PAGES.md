@@ -1,6 +1,6 @@
 # GitHub Pagesデモ
 
-対象リポジトリ名は **Xenoah/tentenvworld_oboro-yashiki** です。旧仮名は使いません。現時点でリモート作成・push・Pages公開は未完了です。準備済みビルドを公開済みと扱わないでください。
+対象リポジトリ名は **Xenoah/tentenvworld_oboro-yashiki** です。旧仮名は使いません。Publicリポジトリと対応ソースの公開は許可済みです。実際の公開状態はGitHub Actionsのdeploy結果と公開URLで確認してください。準備済みビルドだけを公開済みと扱わないでください。
 
 ## ローカルで公開構成を検証
 
@@ -18,13 +18,15 @@ http://localhost:5192/tentenvworld_oboro-yashiki/ を開きます。公開と同
 
 `build:pages` は `dist-pages/` を作ります。`git archive HEAD` で対応ソースを収録するため、配布する変更をコミットしてから実行してください。`OBORO_PAGES_BASE` で別のサブパスを指定できます。公開後の同じブラウザ試験には `OBORO_PAGES_URL=https://実際に確認したURL/ BROWSER=/usr/bin/chromium npm run test:pages` を使います。URLを推測して公開済みとは報告しません。
 
-## 非公開リポジトリと公開デモ
+## 公開リポジトリと公開デモ
 
-GitHub Freeの個人アカウントではPagesは公開リポジトリ用です。非公開リポジトリからのPagesはGitHub Pro等の対応プランが必要です。実アカウントのプラン・Pages管理権限を確認し、非公開のまま使えない場合は停止します。自動で公開リポジトリへ変更したり、アップグレード・追加課金をしたりしません。
+リポジトリはPublic、対応ソースZIPも公開する方針です。GitHub Freeの公開リポジトリで利用できるPagesを使い、有料プランへの変更や外部サーバー契約は行いません。
 
-この配布物は公式コードのAGPLを継承します。公開クライアントには対応ソースZIPも同じサイトに付属する構成です。**リポジトリをprivateに保っても、対応ソースZIPの内容は公開されます。** ソース公開はまだ実行していません。公開許可を確認するまでActionsは検証だけを行い、デプロイしない構成です。
+この配布物は公式コードのAGPLを継承します。公開クライアントには対応ソースZIP、AGPL本文、依存ライセンス全文も同じサイトに付属します。
 
-`.github/workflows/pages.yml` はpush時に型検査・12テスト・ビルド・実Chromium試験を実行します。対応プラン・既存権限・ソース公開許可が整った場合だけ、PagesのBuild and deploymentをGitHub Actionsに設定し、workflow_dispatchの `publish_corresponding_source` をtrueにしてデプロイします。公開URLはdeploy-pagesの実応答で確認します。private Actionsの無料枠を超える追加料金は許可されていません。
+GitHubのSettings → Pages → Build and deploymentでSourceを **GitHub Actions** に設定します。`.github/workflows/pages.yml` はmainへのpushで型検査・12テスト・ビルド・実Chromium試験を行い、成功後にPagesへデプロイします。手動workflow_dispatchも可能です。公開URLはdeploy-pagesの実応答で確認してください。
+
+Releaseは `v1.0.0` タグを候補とし、package.jsonのversionと一致するタグをpushすると `.github/workflows/release.yml` が同じ検証と配布物生成を行い、GitHub Releaseを作成します。既存の同名タグ/Releaseを上書きしません。ローカルの配布物生成は `npm run build:pages` → `npm run package:release`、出力は `releases-out/` です。
 
 ## デモの範囲
 
