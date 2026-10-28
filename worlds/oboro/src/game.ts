@@ -3,10 +3,12 @@ import { observeMotion, quietWindow, type MotionTrack, type Disturbance } from '
 export type V3 = [number, number, number]
 export type Difficulty = 'easy' | 'normal' | 'hard'
 export const DIFFICULTIES = {
-  easy: { label: '見習い', limit: 1200, speed: 1.05, sight: 6, windup: 2.8, multiplier: 1 },
-  normal: { label: '忍び', limit: 900, speed: 1.65, sight: 8, windup: 2.0, multiplier: 1.5 },
-  hard: { label: '上忍', limit: 660, speed: 2.2, sight: 10, windup: 1.4, multiplier: 2 },
+  easy: { label: '見習い', limit: 480, bonus: 30, speed: 1.05, sight: 6, windup: 2.8, multiplier: 1 },
+  normal: { label: '忍び', limit: 300, bonus: 30, speed: 1.65, sight: 8, windup: 2.0, multiplier: 1.5 },
+  hard: { label: '上忍', limit: 240, bonus: 20, speed: 2.2, sight: 10, windup: 1.4, multiplier: 2 },
 }
+/** "3, 2, 1, 始め" — the round clock and every command wait for this lead-in. */
+export const COUNTDOWN = 3000
 export const SPAWN: V3 = [0, .1, 13]
 export const KEYS = [
   { id: 'wood', name: '木の印', pos: [-17, 1.1, -3] as V3, color: '#e5b773', hint: '一・書院：掛軸の「月 → 波 → 松」の順に印を押し、回転扉の奥へ。' },
@@ -29,6 +31,8 @@ export interface GameState {
   startedAt: number; updatedAt: number; endedAt: number; keys: string[]; rune: number; door: boolean;
   valves: number[]; stars: number[]; recoveries: number; score: number; reason: string;
   enemies: Enemy[]; protectedUntil: Record<string, number>; roster: string[]; serial: number; motion:Record<string,MotionTrack>; disturbances:Disturbance[]; noiseSerial:number;
+  /** Seconds earned by seals, and the lap time (seconds after the start) of each seal. */
+  bonus: number; splits: { id: string; t: number }[];
 }
 export type Command = { run: number; kind: string; value?: string }
 export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameState => ({
@@ -36,11 +40,14 @@ export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameSt
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
     { pos: [-5, 0, -8], target: null, alertAt: 0, waypoint: 1, mode: 'patrol' },
     { pos: [7, 0, 5], target: null, alertAt: 0, waypoint: 2, mode: 'patrol', reverse: true },
-  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0,
+  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0, bonus: 0, splits: [],
 })
 export const distance = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 export const safe = (p: V3) => p[2] > 8 || p[1] > 1.8 || p[1] < -1 || p[2] < -13 || Math.abs(p[0]) > 9
-export const scoreFor = (s: GameState, now: number) => Math.max(0, Math.round((s.keys.length * 1000 + (s.phase === 'won' ? 3000 + Math.max(0, DIFFICULTIES[s.difficulty].limit - (now - s.startedAt) / 1000) * 4 : 0) - s.recoveries * 150) * DIFFICULTIES[s.difficulty].multiplier))
+export const timeLimit = (s: GameState) => DIFFICULTIES[s.difficulty].limit + (s.bonus ?? 0)
+export const elapsed = (s: GameState, now: number) => Math.max(0, now - s.startedAt) / 1000
+export const remaining = (s: GameState, now: number) => Math.max(0, timeLimit(s) - elapsed(s, now))
+export const scoreFor = (s: GameState, now: number) => Math.max(0, Math.round((s.keys.length * 1000 + (s.phase === 'won' ? 3000 + remaining(s, now) * 4 : 0) - s.recoveries * 150) * DIFFICULTIES[s.difficulty].multiplier))
 function finish(s: GameState, phase: 'won' | 'lost', now: number, reason: string) { s.phase = phase; s.endedAt = now; s.reason = reason; s.score = scoreFor(s, now); return s }
 export function command(state: GameState, cmd: Command, player: Player, now: number, host: boolean): GameState {
   if (!cmd || typeof cmd.kind !== 'string' || cmd.run !== state.run || !player.pos.every(Number.isFinite)) return state
@@ -52,10 +59,10 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if ((cmd.kind === 'start' && s.phase === 'lobby') || (cmd.kind === 'restart' && (s.phase === 'lost' || s.phase === 'won'))) {
     if (!host) return state
     const next = initialState(s.run + 1, s.difficulty)
-    next.phase = 'running'; next.startedAt = next.updatedAt = now; next.roster = [player.id]; next.protectedUntil[player.id] = now + 12000
+    next.phase = 'running'; next.startedAt = now + COUNTDOWN; next.updatedAt = now; next.roster = [player.id]; next.protectedUntil[player.id] = now + COUNTDOWN + 12000
     return next
   }
-  if (s.phase !== 'running') return state
+  if (s.phase !== 'running' || now < s.startedAt) return state
   if (!s.roster.includes(player.id)) return state
   if (cmd.kind === 'brace') {
     const m=s.motion[player.id]
@@ -79,7 +86,8 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
     const key = cmd.kind.slice(4)
     if (!KEYS.some(k => k.id === key) || s.keys.includes(key)) return state
     if ((key === 'wood' && !s.door) || (key === 'water' && s.valves.length !== 2) || (key === 'void' && s.stars.length !== 3)) return state
-    s.keys.push(key)
+    s.keys.push(key); s.bonus = (s.bonus ?? 0) + DIFFICULTIES[s.difficulty].bonus
+    ;(s.splits ??= []).push({ id: key, t: Math.round(elapsed(s, now) * 10) / 10 })
   } else if (cmd.kind === 'exit' && s.keys.length === KEYS.length) return finish(s, 'won', now, '五つの印が結ばれ、朧の門が開いた。')
   else return state
   s.score = scoreFor(s, now); s.serial++; return s
@@ -113,7 +121,7 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
   s.disturbances=s.disturbances.filter(e=>now-e.at<6500)
   for(const p of present){const observed=observeMotion(s.motion[p.id],p,now);s.motion[p.id]=observed.motion;for(const e of observed.events)s.disturbances.push({...e,by:p.id,id:++s.noiseSerial})}
   s.disturbances=s.disturbances.slice(-16)
-  if (now - s.startedAt >= cfg.limit * 1000) return finish(s, 'lost', now, '夜明けの鐘。任務時間が尽きた。')
+  if (now >= s.startedAt && remaining(s, now) <= 0) return finish(s, 'lost', now, '夜明けの鐘。任務時間が尽きた。')
   if (now - s.startedAt < 15000) return s
   s.enemies.forEach(enemy => {
     const candidates = present.filter(p => !safe(p.pos) && now > (s.protectedUntil[p.id] ?? 0) && distance(p.pos, enemy.pos) < cfg.sight && lineOfSight(enemy.pos, p.pos)).sort((a,b)=>distance(a.pos,enemy.pos)-distance(b.pos,enemy.pos))

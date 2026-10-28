@@ -3,20 +3,24 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { Clickable, SpawnPad, SpatialSound, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
+import { Clickable, FaceCamera, SpawnPad, SpatialSound, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
 import * as T from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { MovementEffects, type MovementVisual } from './MovementEffects'
+import { Pad, Rope, Touch, markWarp } from './Pads'
+import { Taiko, play, setCuesEnabled, type Mood } from './audio'
 import { SoftLighting, DEFAULT_VISUALS, type VisualSettings } from './Lighting'
 import { Architecture, useMaterials, type Materials } from './Architecture'
-import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, command, distance, initialState, tick, type Command, type GameState, type V3 } from './game'
+import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, command, distance, elapsed, initialState, remaining, tick, type Command, type GameState, type V3 } from './game'
+import { Hud, clock } from './Hud'
 
 const STATE = 'w:oboro:game'
 function useGame(){
   const rt=useRuntime(),host=useIsHost(),players=usePlayers()
   const [state]=useSyncedState<GameState>('oboro:game',initialState())
   const [message,setMessage]=useState('五つの印を集め、夜明けまでに門を開け。')
-  const accumulator=useRef(0),store=useWorldStore()
+  const accumulator=useRef(0),store=useWorldStore(),[best,setBest]=useState({score:0,time:0})
+  useEffect(()=>{void Promise.all([store.player.get('oboro-best'),store.player.get('oboro-best-time')]).then(([a,b])=>setBest({score:Number(a)||0,time:Number(b)||0})).catch(()=>{})},[store])
   useEffect(()=>{rt.teleport(SPAWN,0)},[rt])
   const send=(kind:string,value?:string)=>rt.events.emit('oboro:command',{run:state.run,kind,value},'host')
   useEffect(()=>{
@@ -37,17 +41,18 @@ function useGame(){
     const list=rt.players().map(p=>{const pose=rt.pose(p.peerId);return {id:p.peerId,pos:pose?.position??SPAWN,grounded:pose?.grounded,speed:pose?.speed}})
     const next=tick(s,list,rt.clock().now());if(next!==s)rt.state.set(STATE,next)
   })
-  const last=useRef({run:state.run,phase:state.phase,count:state.keys.length})
+  const last=useRef({run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length})
   useEffect(()=>{
     if(last.current.run!==state.run||last.current.phase!==state.phase){
       rt.locomotion?.set(null);rt.teleport(SPAWN,0)
-      setMessage(state.phase==='running'?'探索開始。玄関と各試練の室内は安全。忍者は中庭を巡回する。':state.reason||'準備ができたら探索を始めよう。')
-      if(state.phase==='won'){void store.player.get('oboro-best').then(v=>store.player.set('oboro-best',Math.max(Number(v)||0,state.score))).catch(()=>{})}
+      setMessage(state.phase==='running'?'印・星・光る輪には触れるだけ。橙の輪は縁側の縄。忍者は中庭を巡回する。':state.reason||'準備ができたら探索を始めよう。')
+      if(state.phase==='won'){const time=Math.round(elapsed(state,state.endedAt));const next={score:Math.max(best.score,state.score),time:best.time?Math.min(best.time,time):time};setBest(next);void store.player.set('oboro-best',next.score).then(()=>store.player.set('oboro-best-time',next.time)).catch(()=>{})}
     }
-    if(last.current.count<state.keys.length)setMessage(`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/5`)
-    last.current={run:state.run,phase:state.phase,count:state.keys.length}
-  },[state.run,state.phase,state.keys.length])
-  return {state,send,host,players,message,setMessage}
+    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/5`);play(rt.audioListener(),'seal')}
+    if(last.current.run===state.run&&last.current.stars<state.stars.length)play(rt.audioListener(),'star')
+    last.current={run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length}
+  },[state.run,state.phase,state.keys.length,state.stars.length])
+  return {state,send,host,players,message,setMessage,best}
 }
 type Game=ReturnType<typeof useGame>
 
@@ -69,6 +74,7 @@ function Oboro(){
     <Gimmicks game={game} m={m} comfort={comfort}/>
     <Mobility game={game} comfort={comfort} m={m}/>
     {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'}/>) }
+    <Music game={game} sound={sound}/>
     {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
     {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals}/>}
   </>
@@ -80,11 +86,11 @@ function Button3D({text,position,onClick,material,width=1.1,rotation}:{text:stri
   </Clickable>
 }
 function Board({game:g,comfort,setComfort,sound,setSound,materials:m}:{game:Game;comfort:boolean;setComfort:(v:boolean)=>void;sound:boolean;setSound:(v:boolean)=>void;materials:Materials}){
-  const s=g.state,remaining=Math.max(0,DIFFICULTIES[s.difficulty].limit-Math.floor((s.updatedAt-s.startedAt)/1000))
+  const s=g.state,left=Math.ceil(remaining(s,s.updatedAt))
   return <group position={[-4.6,0,10.5]} rotation={[0,.35,0]} scale={.8}>
     <mesh position={[0,1.8,0]} material={m.darkwood} castShadow><boxGeometry args={[5.3,3.25,.2]}/></mesh>
     <TextPlane text="朧 の 屋 敷" width={4.3} lineHeight={.42} bold position={[0,2.65,.12]} color="#e8c996"/>
-    <TextPlane text={`OBORO  /  THE HOUSE OF FIVE SEALS\n${s.phase==='running'?`探索中　${s.keys.length}/5 印　　残り ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`:s.phase==='won'?`脱出成功　${s.score} 点`:s.phase==='lost'?'探索失敗 — もう一度、夜の屋敷へ':'一〜四人協力脱出 / 操作は照準＋クリック・トリガー'}`} width={4.6} lineHeight={.14} position={[0,2.04,.13]} color="#d4d1bc"/>
+    <TextPlane text={`OBORO  /  THE HOUSE OF FIVE SEALS\n${s.phase==='running'?`探索中　${s.keys.length}/5 印　　残り ${clock(left)}`:s.phase==='won'?`脱出成功　${s.score} 点`:s.phase==='lost'?'探索失敗 — もう一度、夜の屋敷へ':'一〜四人協力脱出 / 操作は照準＋クリック・トリガー'}`} width={4.6} lineHeight={.14} position={[0,2.04,.13]} color="#d4d1bc"/>
     <Button3D text={s.phase==='lobby'?'探索を始める':s.phase==='running'?'玄関へ帰還':'再挑戦'} position={[0,1.2,.2]} width={1.5} material={m.red} onClick={()=>g.send(s.phase==='lobby'?'start':s.phase==='running'?'recover':'restart')}/>
     <Button3D text={`難易度：${DIFFICULTIES[s.difficulty].label}`} position={[-1.65,1.2,.2]} width={1.6} material={m.ink} onClick={()=>{const keys=['easy','normal','hard'];g.send('difficulty',keys[(keys.indexOf(s.difficulty)+1)%3])}}/>
     <Button3D text={comfort?'快適移動：入':'快適移動：切'} position={[1.65,1.2,.2]} width={1.6} material={m.ink} onClick={()=>setComfort(!comfort)}/>
@@ -93,9 +99,11 @@ function Board({game:g,comfort,setComfort,sound,setSound,materials:m}:{game:Game
   </group>
 }
 function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
-  const rt=useRuntime(),s=g.state
-  const keyActive=(id:string)=>s.phase==='running'&&!s.keys.includes(id)&&(id!=='wood'||s.door)&&(id!=='water'||s.valves.length===2)&&(id!=='void'||s.stars.length===3)
-  const warp=(p:V3,look=0)=>{rt.locomotion?.set(null);rt.teleport(p,look)}
+  const rt=useRuntime(),s=g.state,running=s.phase==='running'
+  const keyActive=(id:string)=>running&&!s.keys.includes(id)&&(id!=='wood'||s.door)&&(id!=='water'||s.valves.length===2)&&(id!=='void'||s.stars.length===3)
+  const warp=(p:V3,look=0)=>{if(!running)return;markWarp();rt.locomotion?.set(null);rt.teleport(p,look);play(rt.audioListener(),'warp')}
+  // Comfort mode and the standard client use warp pads; the extended client without comfort uses real swimming/floating.
+  const pads=comfort||!rt.locomotion
   return <>
     <TextPlane text="一　廻り書院\n月に聞き、波を渡り、松に隠れよ" width={3.4} lineHeight={.23} position={[-14,2.8,2]} color="#e4ce9e"/>
     {['moon','wave','pine'].map((r,i)=><Button3D key={r} text={['月','波','松'][i]} position={ACTIONS[`rune:${r}`]} material={s.rune>i?m.brass:m.red} width={.7} onClick={()=>g.send(`rune:${r}`)}/>)}
@@ -107,53 +115,72 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
       <Clickable label={`${k.name}を取る（仲間全員で共有）`} enabled={keyActive(k.id)} reach={2.3} onClick={()=>g.send(`key:${k.id}`)}>
         <Seal color={s.keys.includes(k.id)?'#525747':k.color} collected={s.keys.includes(k.id)}/>
       </Clickable>
-      <TextPlane text={s.keys.includes(k.id)?'取得済':k.name} width={.9} lineHeight={.14} position={[0,.65,0]} color={k.color}/>
+      {/* Touching the seal takes it: run through without stopping to aim. */}
+      <Touch position={[0,-.2,0]} size={[2.2,2.6,2.2]} enabled={keyActive(k.id)} onEnter={()=>g.send(`key:${k.id}`)}/>
+      {!s.keys.includes(k.id)&&<FaceCamera position={[0,.65,0]}><TextPlane text={k.name} width={.9} lineHeight={.14} color={k.color}/></FaceCamera>}
     </group>)}
-    <TextPlane text="二　跳躍の庭\n踏切台で跳び、前進して高台へ" width={3} lineHeight={.25} position={[15,2,-1]} color="#efc589"/>
-    <Clickable label={comfort?'高台へ跳躍（快適ワープ）':'踏切台から跳躍'} reach={2.8} position={[16,.16,5.5]} onClick={()=>{if(s.phase!=='running')return;if(comfort||!rt.locomotion)warp([16,3.5,3.8]);else rt.locomotion.impulse([0,10,0])}}>
+    <TextPlane text="二　跳躍の庭\n踏切台を踏めば高台へ" width={3} lineHeight={.25} position={[15,2,-1]} color="#efc589"/>
+    {/* The extended client keeps the real jump impulse when comfort is off. */}
+    <Clickable label={pads?'高台へ跳躍（快適ワープ）':'踏切台から跳躍'} reach={2.8} position={[16,.16,5.5]} onClick={()=>{if(!running)return;if(pads)warp([16,3.5,3.8]);else rt.locomotion!.impulse([0,10,0])}}>
       <mesh material={m.red}><cylinderGeometry args={[.9,.9,.18,24]}/></mesh>
       <TextPlane text="跳" width={.9} lineHeight={.4} position={[0,.15,0]} rotation={[-Math.PI/2,0,0]} color="#ffe0a2"/>
     </Clickable>
-    <Button3D text="庭へ戻る" position={[17.5,4.1,3.5]} material={m.ink} onClick={()=>warp([14,.1,6])}/>
-    <TextPlane text="三　水牢\n両岸の水門を開け、水底へ" width={3.4} lineHeight={.22} position={[-14,2,-12.5]} color="#9acfc6"/>
-    {[0,1].map(i=><Clickable key={i} position={ACTIONS[`valve:${i}`]} label={`水門 ${i+1} を開く`} reach={3} onClick={()=>g.send(`valve:${i}`)}>
-      <mesh material={s.valves.includes(i)?m.brass:m.red} rotation={[0,0,s.valves.includes(i)?Math.PI/2:0]}><torusGeometry args={[.33,.055,8,20]}/></mesh>
-      <mesh material={m.brass}><boxGeometry args={[.6,.05,.08]}/></mesh>
-      <TextPlane text={s.valves.includes(i)?'開':'水門'} width={.7} lineHeight={.13} position={[0,.6,0]}/>
-    </Clickable>)}
-    <Button3D text="水牢へ潜る" position={[-12,1,-12.6]} material={m.ink} onClick={()=>{if(s.phase==='running')warp(rt.locomotion?[-12,-1.8,-16]:[-12.6,-2.9,-16.6])}}/>
-    {rt.locomotion&&<Button3D text="水底へ" position={[-12,-.8,-16]} material={m.ink} onClick={()=>warp([-14,-2.7,-17])}/>}
-    <Button3D text="岸へ浮上" position={[-14,-1.8,-18.8]} material={m.ink} onClick={()=>warp([-12,.15,-12])}/>
-    <TextPlane text="四　星 蔵\n一 → 二 → 三。空を歩き、印を結ぶ" width={4} lineHeight={.23} position={[0,3.2,-15]} color="#bfcaee"/>
+    <Touch position={[16,.2,5.5]} size={[1.5,2,1.5]} enabled={running&&pads} onEnter={()=>warp([16,3.5,3.8])}/>
+    <Pad position={[14.6,3.42,1.9]} label="庭へ戻る" onEnter={()=>warp([14,.1,7])} enabled={running}/>
+    <TextPlane text="三　水牢\n両岸の水門に触れて開け、水底へ" width={3.4} lineHeight={.22} position={[-14,2,-12.5]} color="#9acfc6"/>
+    {[0,1].map(i=><group key={i}>
+      <Clickable position={ACTIONS[`valve:${i}`]} label={`水門 ${i+1} を開く`} reach={3} onClick={()=>g.send(`valve:${i}`)}>
+        <mesh material={s.valves.includes(i)?m.brass:m.red} rotation={[0,0,s.valves.includes(i)?Math.PI/2:0]}><torusGeometry args={[.33,.055,8,20]}/></mesh>
+        <mesh material={m.brass}><boxGeometry args={[.6,.05,.08]}/></mesh>
+        <TextPlane text={s.valves.includes(i)?'開':'水門'} width={.7} lineHeight={.13} position={[0,.6,0]}/>
+      </Clickable>
+      <Touch position={[ACTIONS[`valve:${i}`][0],0,-12.2]} size={[1.6,2.2,1.6]} enabled={running&&!s.valves.includes(i)} onEnter={()=>g.send(`valve:${i}`)}/>
+    </group>)}
+    <Pad position={[-12.6,.06,-12.4]} label={s.valves.length===2?'水牢へ潜る':'水牢へ潜る（水門 '+s.valves.length+'/2）'} color="#6ddacb" onEnter={()=>warp(rt.locomotion&&!comfort?[-12,-1.8,-16]:[-12.6,-2.9,-16.6])} enabled={running}/>
+    <Pad position={[-11.2,-3.06,-20.6]} label="岸へ浮上" color="#6ddacb" onEnter={()=>warp([-14.6,.15,-11.6])} enabled={running}/>
+    <TextPlane text="四　星 蔵\n一 → 二 → 三。足場を渡り、星に触れる" width={4} lineHeight={.23} position={[0,3.2,-15]} color="#bfcaee"/>
     {[0,1,2].map(i=><group key={i} position={ACTIONS[`star:${i}`]}>
       <Clickable label={`星 ${i+1} を灯す`} reach={2.7} onClick={()=>g.send(`star:${i}`)}><mesh rotation={[0,0,Math.PI/4]}><octahedronGeometry args={[.28]}/><meshStandardMaterial color={s.stars.includes(i)?'#ffe5a0':'#65769f'} emissive={s.stars.includes(i)?'#cc8a43':'#283363'} emissiveIntensity={1}/></mesh></Clickable>
+      <Touch position={[0,-1,0]} size={[2.3,2.8,2.3]} enabled={running&&s.stars.length===i} onEnter={()=>g.send(`star:${i}`)}/>
       <TextPlane text={['一','二','三'][i]} width={.6} lineHeight={.2} position={[0,.5,0]}/>
     </group>)}
-    {(comfort||!rt.locomotion)&&<>
-      <Button3D text="浮遊足場 一" position={[0,1,-15.4]} material={m.ink} onClick={()=>{if(s.phase==='running')warp([-2,1,-17])}}/>
-      <Button3D text="浮遊足場 二" position={[-2,1.8,-17.5]} material={m.ink} onClick={()=>warp([2,2.8,-20])}/>
-      <Button3D text="浮遊足場 三" position={[2,3.8,-20.5]} material={m.ink} onClick={()=>warp([-2,4.6,-21])}/>
-      <Button3D text="空の印へ" position={[-2,5.5,-21.5]} material={m.ink} onClick={()=>warp([0,4.6,-19])}/>
+    {pads&&<>
+      <Pad position={[0,.06,-16.1]} label="浮遊足場 一" color="#b0baff" onEnter={()=>warp([-2,1,-17])} enabled={running}/>
+      <Pad position={[-2.65,.93,-16.35]} radius={.35} label="足場 二へ" color="#b0baff" onEnter={()=>warp([2,2.8,-20])} enabled={running}/>
+      <Pad position={[2.65,2.73,-19.35]} radius={.35} label="足場 三へ" color="#b0baff" onEnter={()=>warp([-2,4.6,-21])} enabled={running}/>
+      <Pad position={[-2.65,4.53,-20.35]} radius={.35} label="空の印へ" color="#b0baff" onEnter={()=>warp([0,4.6,-19])} enabled={running}/>
     </>}
-    <Button3D text="星蔵から戻る" position={[2.2,5.2,-20.4]} material={m.ink} onClick={()=>warp([0,.1,-13])}/>
+    <Pad position={[.7,pads?4.53:.06,pads?-18.35:-16.6]} radius={.35} label="星蔵から戻る" onEnter={()=>warp([0,.1,-13.2])} enabled={running&&(pads||s.keys.includes('void'))}/>
     <TextPlane text="五　天井回廊\n足袋の印で壁へ。次に天井へ。" width={4} lineHeight={.23} position={[15,3.2,-15]} color="#d9bb7c"/>
     <SurfaceButtons m={m} game={g} comfort={comfort}/>
+    {/* Ziplines along both engawa: south entrance <-> north deck. */}
+    {[-9.6,9.6].map(x=><group key={x}>
+      <Rope from={[x,2.75,8.8]} to={[x,2.75,-12.2]}/>
+      <Pad position={[x,.14,8.8]} label="縄で北の廊下へ" color="#e9a560" arrow={0} onEnter={()=>warp([x,.2,-10],0)} enabled={running}/>
+      <Pad position={[x,.06,-12.2]} label="縄で玄関側へ" color="#e9a560" arrow={Math.PI} onEnter={()=>warp([x,.25,7.2],Math.PI)} enabled={running}/>
+    </group>)}
     <Button3D text={s.keys.length===5?'五印を納め、脱出':'脱出門 / 五つの印が必要'} position={ACTIONS.exit} rotation={[0,Math.PI,0]} width={2.7} material={s.keys.length===5?m.brass:m.red} onClick={()=>g.send('exit')}/>
+    <Touch position={[0,0,16.4]} size={[3,2.4,1.4]} enabled={running&&s.keys.length===5} onEnter={()=>g.send('exit')}/>
     <TextPlane text="忍者は中庭を巡回。玄関・縁側・試練の部屋は安全。" width={6} lineHeight={.14} position={[0,3.2,8]} color="#c8d4c8"/>
   </>
 }
 function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolean}){
-  const rt=useRuntime()
+  const rt=useRuntime(),running=g.state.phase==='running',pads=comfort||!rt.locomotion
   const enter=(mode:'wall'|'ceiling'|'floor')=>{
-    if(g.state.phase!=='running')return
-    const p:V3=mode==='wall'?[10,1.5,-18]:mode==='ceiling'?[14,rt.locomotion?5.78:4.3,-19]:[14,.1,-13]
-    rt.events.emit('oboro:surface-local',{mode},rt.self().peerId);rt.teleport(p,0)
+    if(!running)return
+    const p:V3=mode==='wall'?[10,1.5,-18]:mode==='ceiling'?[14,rt.locomotion?5.78:4.3,-19]:[14,.1,-13.2]
+    markWarp();rt.events.emit('oboro:surface-local',{mode},rt.self().peerId);rt.teleport(p,0);play(rt.audioListener(),'warp')
   }
   return <>
-    <Button3D text={comfort?'壁の足場へ':'壁を歩く'} position={[11,1.2,-15.7]} material={m.red} onClick={()=>enter('wall')}/>
-    <Button3D text="天井へ渡る" position={[10.7,3.2,-18.5]} material={m.brass} onClick={()=>enter('ceiling')}/>
-    <Button3D text="床に戻る" position={[15,4.8,-20.8]} material={m.ink} onClick={()=>enter('floor')}/>
-    <Button3D text="壁から戻る" position={[10.7,1.5,-19.4]} material={m.ink} onClick={()=>enter('floor')}/>
+    <Pad position={[11.2,.06,-16]} label={pads?'壁の足場へ':'壁を歩く'} color="#f4d49b" onEnter={()=>enter('wall')} enabled={running}/>
+    {pads?<>
+      <Pad position={[10.6,1.43,-17.3]} radius={.35} label="天井へ渡る" color="#f4d49b" onEnter={()=>enter('ceiling')} enabled={running}/>
+      <Pad position={[13.3,4.23,-18.3]} radius={.35} label="床に戻る" onEnter={()=>enter('floor')} enabled={running}/>
+    </>:<>
+      <Button3D text="天井へ渡る" position={[10.7,3.2,-18.5]} material={m.brass} onClick={()=>enter('ceiling')}/>
+      <Button3D text="床に戻る" position={[15,4.8,-20.8]} material={m.ink} onClick={()=>enter('floor')}/>
+      <Button3D text="壁から戻る" position={[10.7,1.5,-19.4]} material={m.ink} onClick={()=>enter('floor')}/>
+    </>}
   </>
 }
 const FOOTRESTS:V3[]=[[-2,.85,-17],[2,2.65,-20],[-2,4.45,-21],[0,4.45,-19],[10,1.35,-18],[14,4.15,-19],[16,4.15,-20]]
@@ -221,36 +248,14 @@ function Water(){
 function Moon(){return <group><mesh position={[-18,32,-48]}><sphereGeometry args={[2.5,24,16]}/><meshBasicMaterial color="#e9e5ce"/></mesh><mesh position={[-18,32,-48]}><sphereGeometry args={[3.3,24,16]}/><meshBasicMaterial color="#b8d5dc" transparent opacity={.06} depthWrite={false}/></mesh></group>}
 function Dust(){const ref=useRef<T.Points>(null),positions=useMemo(()=>{const a=new Float32Array(180*3);for(let i=0;i<180;i++){a[i*3]=Math.sin(i*237.1)*20;a[i*3+1]=.4+(i%34)*.16;a[i*3+2]=Math.cos(i*87.2)*19-3}return a},[]);useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=clock.elapsedTime*.003});return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]}/></bufferGeometry><pointsMaterial size={.025} color="#edcf8c" transparent opacity={.45} depthWrite={false}/></points>}
 
-function Hud({game:g,comfort,setComfort,sound,setSound,help,setHelp,visuals,setVisuals}: {game:Game;comfort:boolean;setComfort:(v:boolean)=>void;sound:boolean;setSound:(v:boolean)=>void;help:boolean;setHelp:(v:boolean)=>void;visuals:VisualSettings;setVisuals:(v:VisualSettings)=>void}){
-  const rt=useRuntime(),s=g.state,secs=Math.max(0,DIFFICULTIES[s.difficulty].limit-Math.floor((s.updatedAt-s.startedAt)/1000)),atLobby=useRef(true)
-  const [near,setNear]=useState(true),[visualOpen,setVisualOpen]=useState(false)
-  useFrame(()=>{const p=rt.pose(rt.self().peerId)?.position;const n=!!p&&distance(p,ACTIONS.start)<6.4;if(n!==atLobby.current){atLobby.current=n;setNear(n)}})
-  const panel:React.CSSProperties={background:'linear-gradient(135deg,rgba(13,29,31,.95),rgba(18,35,36,.88))',border:'1px solid #ad946052',boxShadow:'0 14px 45px #0005',backdropFilter:'blur(12px)'}
-  const button:React.CSSProperties={border:'1px solid #9f89585c',borderRadius:3,background:'#233c3c',color:'#e6dcc5',padding:'9px 13px',cursor:'pointer',fontFamily:'inherit',fontSize:12}
-  return <Html fullscreen calculatePosition={(_o,_c,size)=>[size.width/2,size.height/2]} style={{pointerEvents:'none'}}><div data-oboro-hud="true" style={{fontFamily:'"Noto Serif CJK JP","Yu Mincho",Georgia,serif',color:'#efe4cb',height:'100%',pointerEvents:'none'}}>
-    <style>{`@media(max-width:680px){[data-oboro-hud] .oboro-heading{top:65px!important;left:12px!important;right:12px!important;gap:8px!important}.oboro-heading>div{padding:10px!important;min-width:0!important}.oboro-heading>div:first-child>div:nth-child(2){font-size:20px!important;letter-spacing:3px!important}.oboro-heading>div:first-child>div:first-child{font-size:8px!important;letter-spacing:1px!important}.oboro-heading>div:first-child>div:last-child{display:none}.oboro-heading [data-testid=timer]{font-size:24px!important}[data-oboro-hud] .oboro-seals{top:155px!important;left:12px!important;padding:10px 14px!important;max-width:165px!important}.oboro-seals>div{font-size:10px!important;gap:7px!important;margin:7px 0!important}.oboro-seals>div>span:last-child{display:none}.oboro-seals>div:last-child>span{display:inline!important}.oboro-toolbar{bottom:160px!important;left:10px!important;right:10px!important;justify-content:center!important}.oboro-toolbar>div:first-child{display:none}.oboro-toolbar button{padding:7px 8px!important;font-size:10px!important}[data-oboro-hud] [data-testid=message]{bottom:206px!important;width:90vw!important;max-width:90vw!important;font-size:10px!important;padding:9px!important}[data-oboro-hud] .oboro-help{right:12px!important;top:150px!important;width:calc(100vw - 24px)!important;max-height:45vh!important}}`}</style>
-    <div className="oboro-heading" style={{position:'absolute',top:74,left:28,right:28,display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:16}}>
-      <div style={{...panel,padding:'18px 24px',minWidth:210}}><div style={{fontSize:10,letterSpacing:5,color:'#bda976'}}>A COOPERATIVE ESCAPE</div><div style={{fontSize:30,letterSpacing:7,margin:'7px 0 4px'}}>朧の屋敷</div><div style={{fontSize:10,letterSpacing:4,color:'#9aada8'}}>OBORO · THE FIVE SEALS</div></div>
-      <div style={{...panel,padding:'15px 20px',textAlign:'right'}}><div style={{fontSize:10,letterSpacing:3,color:'#a9bdb6'}}>夜明けまで</div><div data-testid="timer" style={{fontSize:31,fontVariantNumeric:'tabular-nums',margin:'4px 0'}}>{Math.floor(secs/60)}<span style={{color:'#b29c68'}}>:</span>{String(secs%60).padStart(2,'0')}</div><div style={{fontSize:11,color:'#bdc9c0'}}>{DIFFICULTIES[s.difficulty].label}　•　{Math.min(4,g.players.all.length)} / 4 人</div></div>
-    </div>
-    <div className="oboro-seals" style={{position:'absolute',top:230,left:28,...panel,padding:'16px 20px',maxWidth:225}}><div style={{fontSize:10,letterSpacing:3,color:'#bdab83',marginBottom:14}}>集めし印　{ s.keys.length } / 5</div>{KEYS.map((k,i)=><div key={k.id} style={{display:'flex',gap:14,alignItems:'center',margin:'11px 0',fontSize:13,color:s.keys.includes(k.id)?k.color:'#b0bbb1'}}><span style={{border:`1px solid ${s.keys.includes(k.id)?k.color:'#546663'}`,width:23,height:23,display:'grid',placeItems:'center',transform:'rotate(45deg)'}}><span style={{transform:'rotate(-45deg)',fontSize:11}}>{s.keys.includes(k.id)?'✓':i+1}</span></span>{k.name}<span style={{fontSize:9,marginLeft:'auto',color:'#7d9690'}}>{['書院','高台','水牢','星蔵','天井'][i]}</span></div>)}<div style={{marginTop:14,paddingTop:12,borderTop:'1px solid #52635b66',fontSize:11,color:'#98aca1'}}>共同得点　<span data-testid="score">{s.score.toLocaleString()}</span></div></div>
-    {(s.phase!=='running')&&<div style={{...panel,position:'absolute',left:'50%',top:'48%',transform:'translate(-50%,-50%)',width:440,maxWidth:'80vw',padding:'30px 36px',pointerEvents:'auto',textAlign:'center'}}>
-      <div style={{fontSize:11,letterSpacing:5,color:'#bba57b'}}>{s.phase==='won'?'THE GATE IS OPEN':s.phase==='lost'?'LOST IN THE MIST':'月が沈む前に、五つの印を。'}</div>
-      <h1 style={{fontSize:34,fontWeight:400,letterSpacing:4,margin:'16px 0'}}>{s.phase==='won'?'脱出成功':s.phase==='lost'?'探索失敗':'忍びの夜が、始まる'}</h1>
-      <p style={{fontSize:13,lineHeight:1.9,color:'#afc0b5',margin:'12px 0 20px'}}>{s.phase==='lobby'?'木造の迷宮に眠る五つの印。仕掛けを解き、忍者の気配をかわして、仲間と朧の門へ。':s.reason}</p>
-      {s.phase!=='lobby'&&<div style={{fontSize:25,color:'#e5c38a',marginBottom:18}}>{s.score.toLocaleString()} <span style={{fontSize:12}}>点 / 帰還 {s.recoveries} 回</span></div>}
-      <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:18}}>{Object.entries(DIFFICULTIES).map(([key,c])=><button key={key} disabled={!g.host} onClick={()=>g.send('difficulty',key)} style={{...button,background:s.difficulty===key?'#8a6e43':'#233c3c'}}>{c.label}</button>)}</div>
-      <button data-testid="start" disabled={!g.host||!near} onClick={()=>g.send(s.phase==='lobby'?'start':'restart')} style={{...button,width:'100%',background:'#ac8450',color:'#101d20',fontSize:15,padding:14,fontWeight:700}}>{g.host?(s.phase==='lobby'?'探索を始める':'もう一度挑む'):'主催者の開始を待っています'}</button>
-      <p style={{fontSize:10,color:'#8da69c',margin:'14px 0 0'}}>1人でも、4人でも。鍵は全員で共有されます。</p>
-    </div>}
-    <div style={{position:'absolute',bottom:73,left:'50%',transform:'translateX(-50%)',...panel,padding:'11px 20px',fontSize:12,textAlign:'center',maxWidth:'70vw',whiteSpace:'normal',color:'#d4d6bc'}} data-testid="message">{g.message}</div>
-    <div className="oboro-toolbar" style={{position:'absolute',bottom:20,left:28,right:28,display:'flex',gap:8,justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:11,color:'#bccabf',textShadow:'0 2px 8px #000'}}>{controlsText(!!rt.locomotion)}</div><div style={{display:'flex',gap:7,pointerEvents:'auto'}}><button style={button} onClick={()=>setComfort(!comfort)}>{comfort?'◉ 快適移動':'○ 自由移動'}</button><button style={button} onClick={()=>setSound(!sound)}>{sound?'音：入':'音：切'}</button><button style={button} onClick={()=>setHelp(!help)}>手引き</button><button data-testid="visual-settings" style={button} onClick={()=>setVisualOpen(!visualOpen)}>映像</button>{s.phase==='running'&&<button style={button} onClick={()=>g.send('recover')}>玄関へ帰還</button>}</div></div>
-    {visualOpen&&<div className="oboro-help" data-testid="visual-panel" style={{...panel,position:'absolute',right:28,top:230,width:300,padding:22,pointerEvents:'auto',fontSize:12,lineHeight:1.9,zIndex:5}}><strong>柔らかな光</strong><div style={{display:'flex',gap:6,margin:'12px 0'}}>{([['auto','標準'],['low','軽量'],['off','切']] as const).map(([mode,label])=><button data-testid={`glow-${mode}`} key={mode} style={{...button,background:visuals.mode===mode?'#8a6e43':'#233c3c'}} onClick={()=>setVisuals({...visuals,mode})}>{label}</button>)}</div><label>光のにじみ　{Math.round(visuals.glow*100)}%<input data-testid="glow-strength" aria-label="光のにじみ" type="range" min="0" max=".55" step=".01" value={visuals.glow} onChange={e=>setVisuals({...visuals,glow:Number(e.target.value)})} style={{width:'100%'}}/></label><label style={{display:'block',marginTop:12}}>移動ブラー　{Math.round(visuals.blur*100)}%<input data-testid="motion-blur" aria-label="移動ブラー" type="range" min="0" max=".6" step=".01" value={visuals.blur} onChange={e=>setVisuals({...visuals,blur:Number(e.target.value)})} style={{width:'100%'}}/></label><label style={{display:'block',marginTop:12}}><input data-testid="baked-shading" type="checkbox" checked={visuals.shading} onChange={e=>setVisuals({...visuals,shading:e.target.checked})}/> 細部の陰影と灯り</label><p style={{color:'#adbcaf',marginBottom:0}}>軽量設定は灯りの周囲だけを柔らかくします。携帯端末・低解像度では自動で軽量表示。VRではにじみとブラーを無効にします。ブラーは0でOFF、携帯端末・低解像度でもOFFです。難易度には影響しません。</p></div>}
-    {help&&<div className="oboro-help" style={{...panel,position:'absolute',right:28,top:230,width:360,maxHeight:'55vh',overflow:'auto',padding:24,pointerEvents:'auto',fontSize:12,lineHeight:1.9}}><strong style={{color:'#dfc18a'}}>探索の手引き</strong><p>画面をクリックして視点操作。Esc でカーソルを戻します。{rt.locomotion?'照準を合わせて E またはクリック。':'照準を合わせてクリック（標準クライアントではEキーは使えません）。'}VR はレイとトリガー。</p>{KEYS.map(k=><p key={k.id}>{k.hint}</p>)}<p>Shiftでダッシュ、Spaceで跳躍。下降中、足元が地面から75cm以内になったらXか「静音着地」を一度押す。早押し・押し忘れは足音となり、忍者が音の方向を捜索。VRは右B（実機未検証）。音のミュートでも忍者の聴覚は変わりません。</p><p>中庭の忍者は攻撃前に構えます。石や部屋に隠れ、距離を取ってください。捕まると全員敗北。帰還は -150 点。快適移動は難易度と無関係です。</p><p>{rt.locomotion?'泳ぎ・浮遊：向いた方向へ WASD、Space 上昇、Q 下降。':'標準クライアントでは泳ぎ・浮遊・壁歩きの代わりに木の足場とワープを使います。下降は左Ctrl。'}VR は上を向いて前進またはトリガー上昇。壁／天井は低速移動。快適モードは水平視点とワープ足場。</p><p style={{color:'#8ca69b'}}>コード・素材：AGPL-3.0-only / TenTenV contributors + Oboro contributors。保証なし。対応ソースと導入手順を配布物に同梱。</p></div>}
-  </div></Html>
+/** Taiko loop: calm in the lobby, faster as dawn nears, a heartbeat while a ninja is on you. */
+function Music({game:g,sound}:{game:Game;sound:boolean}){
+  const rt=useRuntime(),mood=useRef<Mood>({tempo:84,danger:false})
+  useFrame(()=>{const s=g.state,now=rt.clock().now(),left=s.phase==='running'?remaining(s,now):999,me=rt.self().peerId
+    mood.current={tempo:s.phase!=='running'?78:left<=60?150:left<=120?118:100,danger:s.phase==='running'&&s.enemies.some(e=>e.target===me&&e.mode!=='patrol')}})
+  useEffect(()=>{setCuesEnabled(sound);if(!sound)return;const l=rt.audioListener(),gain=l.context.createGain();gain.gain.value=.45;gain.connect(l.getInput());const t=new Taiko(l.context,gain,()=>mood.current);t.start();return()=>{t.stop();gain.disconnect()}},[sound,rt])
+  return null
 }
-
-export const controlsText=(extended:boolean)=>extended?'WASD 移動　/　マウス 視点　/　E・クリック 調べる　/　Space 上昇　Q 下降':'WASD 移動　/　マウス 視点　/　クリック 調べる　/　Space 跳躍　Ctrl 下降'
 /** Fade within the 3D scene after large positional jumps; works in both eyes in XR. */
 function ComfortCurtain({enabled}:{enabled:boolean}){
   const {camera}=useThree(),rt=useRuntime(),ref=useRef<T.Mesh>(null),last=useRef<V3|null>(null),fade=useRef(0)

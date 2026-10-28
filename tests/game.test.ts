@@ -1,10 +1,10 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {initialState, command, tick, KEYS, ACTIONS, DIFFICULTIES, lineOfSight, type GameState, type Player, type V3} from '../worlds/oboro/src/game.ts'
+import {initialState, command, tick, KEYS, ACTIONS, DIFFICULTIES, COUNTDOWN, remaining, lineOfSight, type GameState, type Player, type V3} from '../worlds/oboro/src/game.ts'
 const t0=1_000_000
 const p:Player={id:'host',pos:[0,0,12]}
 const start=(difficulty:'easy'|'normal'|'hard'='normal')=>command(initialState(0,difficulty),{run:0,kind:'start'},p,t0,true)
-const act=(s:GameState,kind:string,pos:V3=ACTIONS[kind],id='host',host=true)=>command(s,{run:s.run,kind},{id,pos},t0+2000,host)
+const act=(s:GameState,kind:string,pos:V3=ACTIONS[kind],id='host',host=true)=>command(s,{run:s.run,kind},{id,pos},t0+5000,host)
 function solve(s:GameState){
   for(const kind of ['rune:moon','rune:wave','rune:pine','valve:0','valve:1','star:0','star:1','star:2'])s=act(s,kind)
   for(const k of KEYS)s=act(s,`key:${k.id}`,k.pos)
@@ -36,7 +36,7 @@ test('late join gets shared snapshot, spawn protection, disconnect prunes, host 
 })
 test('terminal outcome cannot be overwritten by attacks or later commands',()=>{
  const won=act(solve(start()),'exit');assert.equal(tick(won,[p],t0+2_000_000),won)
- let lost=tick(start(),[p],t0+DIFFICULTIES.normal.limit*1000+1);assert.equal(lost.phase,'lost')
+ let lost=tick(start(),[p],t0+COUNTDOWN+DIFFICULTIES.normal.limit*1000+1);assert.equal(lost.phase,'lost')
  assert.equal(act(lost,'exit'),lost);assert.equal(act(won,'key:wood',KEYS[0].pos),won)
 })
 test('attack has windup, requires range and clear sight; retreat cancels',()=>{
@@ -56,4 +56,14 @@ test('recovery is penalized once per cooldown; max four active players and bound
 test('difficulty changes scoring and deadlines; no mid-run changes',()=>{
  const easy=act(solve(start('easy')),'exit'),hard=act(solve(start('hard')),'exit');assert.ok(hard.score>easy.score)
  const s=start();assert.equal(command(s,{run:s.run,kind:'difficulty',value:'hard'},p,t0,true),s)
+})
+test('time attack: 3-2-1 lead-in blocks play, seals add time and record splits',()=>{
+ const s0=start('normal');assert.equal(s0.startedAt,t0+COUNTDOWN)
+ assert.equal(command(s0,{run:s0.run,kind:'key:fire'},{id:'host',pos:KEYS[1].pos},t0+1000,true),s0)
+ assert.equal(tick(s0,[p],t0+1000).phase,'running');assert.equal(remaining(s0,t0+1000),DIFFICULTIES.normal.limit)
+ const s1=command(s0,{run:s0.run,kind:'key:fire'},{id:'host',pos:KEYS[1].pos},t0+COUNTDOWN+42_000,true)
+ assert.deepEqual(s1.splits,[{id:'fire',t:42}]);assert.equal(s1.bonus,DIFFICULTIES.normal.bonus)
+ assert.equal(remaining(s1,t0+COUNTDOWN+42_000),DIFFICULTIES.normal.limit+DIFFICULTIES.normal.bonus-42)
+ assert.equal(tick(s1,[p],t0+COUNTDOWN+(DIFFICULTIES.normal.limit+5)*1000).phase,'running')
+ assert.equal(tick(s1,[p],t0+COUNTDOWN+(DIFFICULTIES.normal.limit+DIFFICULTIES.normal.bonus)*1000+1).phase,'lost')
 })
