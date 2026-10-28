@@ -8,3 +8,7 @@
 - VR、実Android端末、別端末WebRTC/TURNは未検証と明記。ローカルの4タブ検証と公開URLでの検証を混同しない。公開URL/Release URLは実応答があるまで推測して成功扱いしない。
 
 2026-10-28のAPI接続診断: 実行環境のHTTPプロキシは api.github.com へのCONNECTを403で拒否（Envoy、curlの `CONNECT tunnel failed`）。GitHubとのTLS接続前なので、APIトークンの有効性はこのエラーから判定できない。プロキシ変更や迂回はしない。GitHub connectorの正規読取りと、github.comに対する通常gitの読取りは別途成功している。
+
+## v1.2.0差分点検
+
+追跡対象と追加予定の264ファイルを代表的な秘密鍵/トークン/認証情報付きURLパターンで再走査し、該当0件。追加する素材は自作shaderとノイズ波形だけ。SDK optional speedのパッチは固定upstreamへの `git apply --check` を通過。元meshcopiaとupstreamの作業ツリーは未変更。配布用の画像は実ゲームだけを含み、最終SHAのメタデータを梱包時に検査する。

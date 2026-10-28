@@ -333,6 +333,7 @@ const RemotePlayer: React.FC<{ engine: WorldEngine; member: Member; showAvatar: 
       grounded: pose.grounded,
       sitting: pose.sitting,
       velocity: [0, 0, 0],
+      speed: f.speed,
     })
     const voice = engine.voice.remoteLevel(peerId, dt)
     const cam = engine.player.head.p

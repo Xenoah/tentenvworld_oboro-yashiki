@@ -251,6 +251,7 @@ export class WorldEngine {
       grounded: p.grounded,
       sitting: !!p.sitting,
       velocity: v(p.velocity),
+      speed: p.speed,
     }
   }
 

@@ -1,3 +1,4 @@
+import { observeMotion, quietWindow, type MotionTrack, type Disturbance } from './movement'
 /** Host-only, deterministic game rules. All coordinates are metres; timestamps are network ms. */
 export type V3 = [number, number, number]
 export type Difficulty = 'easy' | 'normal' | 'hard'
@@ -21,13 +22,13 @@ export const ACTIONS: Record<string, V3> = {
   'star:0': [-2, 1.3, -18], 'star:1': [2, 3.3, -21], 'star:2': [-2, 5.1, -22],
   exit: [0, 1.2, 17],
 }
-export interface Player { id: string; pos: V3; joinedAt?: number }
-export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' }
+export interface Player { id: string; pos: V3; joinedAt?: number; grounded?: boolean; speed?: number }
+export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search'; heardId?:number; searchUntil?:number; investigate?:V3 }
 export interface GameState {
   version: 1; run: number; phase: 'lobby' | 'running' | 'won' | 'lost'; difficulty: Difficulty;
   startedAt: number; updatedAt: number; endedAt: number; keys: string[]; rune: number; door: boolean;
   valves: number[]; stars: number[]; recoveries: number; score: number; reason: string;
-  enemies: Enemy[]; protectedUntil: Record<string, number>; roster: string[]; serial: number;
+  enemies: Enemy[]; protectedUntil: Record<string, number>; roster: string[]; serial: number; motion:Record<string,MotionTrack>; disturbances:Disturbance[]; noiseSerial:number;
 }
 export type Command = { run: number; kind: string; value?: string }
 export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameState => ({
@@ -35,7 +36,7 @@ export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameSt
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
     { pos: [-4, 0, -3], target: null, alertAt: 0, waypoint: 0, mode: 'patrol' },
     { pos: [7, 0, -10], target: null, alertAt: 0, waypoint: 2, mode: 'patrol' },
-  ], protectedUntil: {}, roster: [], serial: 0,
+  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0,
 })
 export const distance = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 export const safe = (p: V3) => p[2] > 8 || p[1] > 1.8 || p[1] < -1 || p[2] < -13 || Math.abs(p[0]) > 9
@@ -45,8 +46,8 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if (!cmd || typeof cmd.kind !== 'string' || cmd.run !== state.run || !player.pos.every(Number.isFinite)) return state
   const pos = ACTIONS[cmd.kind] ?? KEYS.find(k => `key:${k.id}` === cmd.kind)?.pos
   if (pos && distance(pos, player.pos) > (['start','restart','difficulty'].includes(cmd.kind)?6.4:3.4)) return state
-  if (!pos && cmd.kind !== 'recover') return state
-  const s: GameState = structuredClone(state)
+  if (!pos && cmd.kind !== 'recover' && cmd.kind !== 'brace') return state
+  const s: GameState = structuredClone(state);s.motion??={};s.disturbances??=[];s.noiseSerial??=0
   if (cmd.kind === 'difficulty' && host && s.phase !== 'running' && cmd.value && cmd.value in DIFFICULTIES) { s.difficulty = cmd.value as Difficulty; return s }
   if ((cmd.kind === 'start' && s.phase === 'lobby') || (cmd.kind === 'restart' && (s.phase === 'lost' || s.phase === 'won'))) {
     if (!host) return state
@@ -56,7 +57,11 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   }
   if (s.phase !== 'running') return state
   if (!s.roster.includes(player.id)) return state
-  if (cmd.kind === 'recover') {
+  if (cmd.kind === 'brace') {
+    const m=s.motion[player.id]
+    if(!m||m.grounded||m.braceUsed||now-m.at>800||distance(m.pos,player.pos)>1)return state
+    m.braceAt=quietWindow(m,player.pos)?now:0;m.braceUsed=true;s.serial++;return s
+  } else if (cmd.kind === 'recover') {
     // A cooldown prevents accidental repeated rescue penalties and repeated event delivery.
     if ((s.protectedUntil[player.id] ?? 0) > now + 5000) return state
     s.recoveries++; s.protectedUntil[player.id] = now + 9000
@@ -95,12 +100,17 @@ const ROUTE: V3[] = [[-5,0,-6], [5,0,-7], [7,0,3], [-5,0,5]]
 export function tick(state: GameState, players: Player[], now: number): GameState {
   if (state.phase !== 'running') return state
   const s: GameState = structuredClone(state), cfg = DIFFICULTIES[s.difficulty]
+  s.motion??={};s.disturbances??=[];s.noiseSerial??=0
   const dt = Math.max(0, Math.min(.35, (now - s.updatedAt) / 1000)); s.updatedAt = now
   const present = players.slice(0,4)
   s.roster = present.map(p => p.id)
   for (const p of present) if (!(p.id in s.protectedUntil)) s.protectedUntil[p.id] = now + 12000
   // Prune disconnected peers, so reconnects get fresh spawn protection; state remains <16 KB.
   for (const id of Object.keys(s.protectedUntil)) if (!s.roster.includes(id)) delete s.protectedUntil[id]
+  for(const id of Object.keys(s.motion))if(!s.roster.includes(id))delete s.motion[id]
+  s.disturbances=s.disturbances.filter(e=>now-e.at<6500)
+  for(const p of present){const observed=observeMotion(s.motion[p.id],p,now);s.motion[p.id]=observed.motion;for(const e of observed.events)s.disturbances.push({...e,by:p.id,id:++s.noiseSerial})}
+  s.disturbances=s.disturbances.slice(-16)
   if (now - s.startedAt >= cfg.limit * 1000) return finish(s, 'lost', now, '夜明けの鐘。任務時間が尽きた。')
   if (now - s.startedAt < 15000) return s
   s.enemies.forEach(enemy => {
@@ -116,9 +126,17 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
         if (now - enemy.alertAt > cfg.windup * 1000 && s.phase === 'running') finish(s, 'lost', now, '忍びに捕らえられた。煙の中、探索は幕を閉じる。')
       } else { enemy.mode = 'chase'; move(enemy, target.pos, cfg.speed * dt) }
     } else {
-      enemy.target = null; enemy.mode = 'patrol'; enemy.alertAt = 0
-      const p = ROUTE[enemy.waypoint]; if (distance(enemy.pos,p) < .3) enemy.waypoint = (enemy.waypoint+1)%ROUTE.length
-      move(enemy, ROUTE[enemy.waypoint], cfg.speed*.45*dt)
+      enemy.target=null;enemy.alertAt=0
+      const heard=s.disturbances.filter(e=>e.id>(enemy.heardId??0)&&now-e.at<1200&&now>(s.protectedUntil[e.by]??0)&&e.radius>0&&distance(e.pos,enemy.pos)<hearingRange(e,enemy.pos)).at(-1)
+      if(heard){enemy.heardId=heard.id;enemy.investigate=[Math.max(-8.4,Math.min(8.4,heard.pos[0])),0,Math.max(-11,Math.min(7.5,heard.pos[2]))];enemy.searchUntil=now+6500}
+      if(enemy.investigate&&now<(enemy.searchUntil??0)){
+        enemy.mode=distance(enemy.pos,enemy.investigate)<.65?'search':'investigate'
+        if(enemy.mode==='investigate')move(enemy,enemy.investigate,cfg.speed*.8*dt)
+      }else{
+        enemy.mode='patrol';delete enemy.investigate
+        const p=ROUTE[enemy.waypoint];if(distance(enemy.pos,p)<.3)enemy.waypoint=(enemy.waypoint+1)%ROUTE.length
+        move(enemy,ROUTE[enemy.waypoint],cfg.speed*.45*dt)
+      }
     }
   })
   return s
@@ -128,6 +146,12 @@ function move(e: Enemy, p: V3, amount: number) {
   if (d < .01) return
   const next: V3 = [e.pos[0]+dx/d*Math.min(d,amount), 0, e.pos[2]+dz/d*Math.min(d,amount)]
   // Collision sliding around courtyard obstacles; enemies cannot attack through them.
-  if (BLOCKERS.some(([a,b,c,d])=>next[0]>a-.3&&next[0]<b+.3&&next[2]>c-.3&&next[2]<d+.3)) { e.waypoint=(e.waypoint+1)%ROUTE.length; e.target=null; return }
+  const blocked=(v:V3)=>BLOCKERS.some(([a,b,c,d])=>v[0]>a-.3&&v[0]<b+.3&&v[2]>c-.3&&v[2]<d+.3)
+  if(blocked(next)){
+    const alternatives:V3[]=[[e.pos[0],0,e.pos[2]+(dz>=0?1:-1)*amount],[e.pos[0]+(dx>=0?1:-1)*amount,0,e.pos[2]],[e.pos[0],0,e.pos[2]-(dz>=0?1:-1)*amount]]
+    const slide=alternatives.find(v=>!blocked(v));if(slide)e.pos=slide;return
+  }
   e.pos = next
 }
+
+export function hearingRange(e:Disturbance,listener:V3){return e.radius*(lineOfSight(e.pos,listener)?1:.55)*(Math.abs(e.pos[0])>9||e.pos[2]>8?.65:1)*(e.pos[1]>2?.6:1)}

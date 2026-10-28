@@ -26,7 +26,7 @@ try{
     await p.waitForFunction(()=>!window.__ttvEngine.pendingTeleport,null,{polling:100});await p.waitForTimeout(1800)
     assert.equal(await p.evaluate(()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase),'running')
     if(name==='after-courtyard'){await p.screenshot({path:`${output}/play-courtyard.png`,timeout:90000});captures.push({file:'play-courtyard.png',hud:'visible',position:pos,yaw})}
-    const style=await p.addStyleTag({content:'[data-oboro-hud],.hud,.pointer-lock-hint{visibility:hidden!important}'})
+    const style=await p.addStyleTag({content:'[data-oboro-hud],.oboro-movement,.hud,.pointer-lock-hint{visibility:hidden!important}'})
     await p.screenshot({path:`${output}/${name}.png`,timeout:90000});await style.evaluate(e=>e.remove())
     captures.push({file:`${name}.png`,hud:'hidden for visual comparison',position:pos,yaw})
   }

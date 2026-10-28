@@ -1,6 +1,15 @@
 --- a/packages/sdk/src/runtime.ts
 +++ b/packages/sdk/src/runtime.ts
-@@ -170,7 +170,23 @@
+@@ -37,6 +37,8 @@
+   grounded: boolean
+   sitting: boolean
+   velocity: Vector3Tuple
++  /** Optional horizontal speed already carried by the official pose protocol (m/s). */
++  speed?: number
+ }
+ 
+ export interface ClickSpec {
+@@ -170,7 +172,23 @@
    revision: () => number
  }
  
@@ -43,7 +52,15 @@
    pendingTeleport: { position: Vector3; yaw?: number } | null = null
    /** つかめる物を自分が持っているか（同時に 2 つまで） */
    held: Record<'left' | 'right' | 'desktop', string | null> = { left: null, right: null, desktop: null }
-@@ -289,6 +291,15 @@
+@@ -249,6 +251,7 @@
+       grounded: p.grounded,
+       sitting: !!p.sitting,
+       velocity: v(p.velocity),
++      speed: p.speed,
+     }
+   }
+ 
+@@ -289,6 +292,15 @@
        remove: async (key: string) => (api ? api.storageDel(worldId, scope, key) : localKv(worldId, scope).remove(key)),
      })
      const rt: WorldRuntime = {
@@ -415,3 +432,13 @@
 +  const [available] = useState(hasWebGL2)
 +  return available ? <GraphicsBoundary>{children}</GraphicsBoundary> : <GraphicsUnavailable />
 +}
+--- a/apps/client/src/world/players.tsx
++++ b/apps/client/src/world/players.tsx
+@@ -333,6 +333,7 @@
+       grounded: pose.grounded,
+       sitting: pose.sitting,
+       velocity: [0, 0, 0],
++      speed: f.speed,
+     })
+     const voice = engine.voice.remoteLevel(peerId, dt)
+     const cam = engine.player.head.p

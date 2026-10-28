@@ -37,6 +37,8 @@ npm run dev:client
 
 `WorldRuntime.locomotion` はoptionalで、`version: 1`、`set(profile | null)`、`impulse(velocity)` を持ちます。profileはfloat/swim/surfaceのモード、表面法線、速度、適用範囲、視点回転方針を指定します。公式の `WorldEngine` と `LocalPlayer` が実装し、Rapierのキャラクター制御へ反映します。更新が途絶えた場合は短いリース期限で通常移動へ戻ります。復帰・再開始時には速度や移動設定をリセットします。VRでは視点のrollを強制しません。
 
+v1.2では `PlayerPose.speed?: number` を追加し、local playerの水平速度と公式pose packetの既存speedをワールドへ公開しています。protocolのフィールド追加・形式変更はありません。速度がない標準クライアントでは位置差推定へフォールバックします。足音・静音着地・砂埃の判定はワールドのhost側、X／画面ボタンはワールド側の入力処理です。更新したpatchも同じ固定upstream commitに対し `git apply --check` で確認します。
+
 `.ttvw` だけのimportでは、クライアントの移動処理は追加されません。標準SDK能力で動作するワープ足場を使い、同じ五印と脱出条件を達成する設計です。標準能力相当のfixtureでは一周を確認しましたが、未改変の別の標準クライアントでの通し試験は未実施です。
 
 ## 実際に検証した統合

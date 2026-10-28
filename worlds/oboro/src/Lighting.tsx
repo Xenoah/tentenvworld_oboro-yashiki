@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useDevice } from '@tentenv/sdk'
 import * as T from 'three'
@@ -9,9 +9,11 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 import { STATIC_LAMPS } from './geometry'
+import type { MovementVisual } from './MovementEffects'
 
-export type VisualSettings={glow:number;mode:'auto'|'low'|'off';shading:boolean}
-export const DEFAULT_VISUALS:VisualSettings={glow:.28,mode:'auto',shading:true}
+export type VisualSettings={glow:number;mode:'auto'|'low'|'off';shading:boolean;blur:number}
+export const DEFAULT_VISUALS:VisualSettings={glow:.28,mode:'auto',shading:true,blur:.28}
+const MotionShader={uniforms:{tDiffuse:{value:null},amount:{value:0}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform sampler2D tDiffuse;uniform float amount;varying vec2 vUv;void main(){vec2 d=vUv-.5;float edge=smoothstep(.12,.62,length(d));vec4 c=texture2D(tDiffuse,vUv)*.4;for(int i=1;i<=6;i++){float t=float(i)/6.;c+=texture2D(tDiffuse,clamp(vUv-d*t*amount*edge,vec2(0.),vec2(1.)))*.1;}gl_FragColor=c;}'}
 
 /** Artist-authored local sky radiance, prefiltered once for PBR reflections. No remote HDR. */
 export function SkyReflections(){
@@ -47,21 +49,23 @@ function LanternHalos({settings}:{settings:VisualSettings}){
   return <points geometry={geometry} material={mat} frustumCulled={false}/>
 }
 
-export function SoftLighting({settings}:{settings:VisualSettings}){
-  const {gl,scene,camera,size}=useThree(),device=useDevice(),fx=useRef<{composer:EffectComposer;bloom:UnrealBloomPass;antialias:ShaderPass;width:number;height:number;dpr:number}|null>(null)
+export function SoftLighting({settings,motion}:{settings:VisualSettings;motion?:MutableRefObject<MovementVisual>}){
+  const {gl,scene,camera,size}=useThree(),device=useDevice(),fx=useRef<{composer:EffectComposer;bloom:UnrealBloomPass;motion:ShaderPass;antialias:ShaderPass;width:number;height:number;dpr:number}|null>(null)
   const initialReset=useRef(gl.info.autoReset)
   const dispose=()=>{if(fx.current){for(const p of fx.current.composer.passes)p.dispose();fx.current.composer.dispose();fx.current=null}gl.info.autoReset=initialReset.current}
   useEffect(()=>dispose,[gl])
   useFrame((_,dt)=>{
-    const dpr=gl.getPixelRatio(),enabled=settings.mode==='auto'&&settings.glow>0&&device==='desktop'&&!gl.xr.isPresenting&&dpr>.6&&!!gl.extensions.get('EXT_color_buffer_float')
-    gl.domElement.dataset.oboroGlow=enabled?'bloom':settings.mode==='off'||settings.glow===0||device==='vr'?'off':'halo'
+    const dpr=gl.getPixelRatio(),quality=device==='desktop'&&!gl.xr.isPresenting&&dpr>.6&&!!gl.extensions.get('EXT_color_buffer_float'),bloomEnabled=quality&&settings.mode==='auto'&&settings.glow>0,enabled=quality&&(bloomEnabled||settings.blur>0)
+    const amount=quality?Math.min(.6,settings.blur)*(motion?.current.intensity??0)*.035:0
+    gl.domElement.dataset.oboroBlur=String(amount)
+    gl.domElement.dataset.oboroGlow=bloomEnabled?'bloom':settings.mode==='off'||settings.glow===0||device==='vr'?'off':'halo'
     if(!enabled){dispose();gl.render(scene,camera);return}
     if(!fx.current){
-      const composer=new EffectComposer(gl),bloom=new UnrealBloomPass(new T.Vector2(size.width,size.height),settings.glow,.55,1.15),antialias=new ShaderPass(FXAAShader)
-      composer.addPass(new RenderPass(scene,camera));composer.addPass(bloom);composer.addPass(new OutputPass());composer.addPass(antialias)
-      fx.current={composer,bloom,antialias,width:0,height:0,dpr:0}
+      const composer=new EffectComposer(gl),bloom=new UnrealBloomPass(new T.Vector2(size.width,size.height),settings.glow,.55,1.15),antialias=new ShaderPass(FXAAShader),motion=new ShaderPass(MotionShader)
+      composer.addPass(new RenderPass(scene,camera));composer.addPass(bloom);composer.addPass(motion);composer.addPass(new OutputPass());composer.addPass(antialias)
+      fx.current={composer,bloom,motion,antialias,width:0,height:0,dpr:0}
     }
-    const f=fx.current;f.bloom.strength=Math.min(.55,settings.glow)
+    const f=fx.current;f.bloom.strength=Math.min(.55,settings.glow);f.bloom.enabled=bloomEnabled;f.motion.uniforms.amount.value=amount;f.motion.enabled=amount>.0001
     if(f.width!==size.width||f.height!==size.height||f.dpr!==dpr){f.composer.setPixelRatio(dpr);f.composer.setSize(size.width,size.height);f.antialias.uniforms.resolution.value.set(1/(size.width*dpr),1/(size.height*dpr));f.width=size.width;f.height=size.height;f.dpr=dpr}
     gl.info.autoReset=false;gl.info.reset();f.composer.render(Math.min(dt,.1))
   },1)

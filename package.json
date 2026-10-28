@@ -2,7 +2,7 @@
   "name": "oboro-ninja-yashiki",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -27,7 +27,8 @@
     "start": "node scripts/serve.mjs",
     "bake": "node --import tsx scripts/bake-lighting.ts",
     "check:bake": "node --import tsx scripts/bake-lighting.ts --check",
-    "test:lighting": "node tests/lighting.mjs"
+    "test:lighting": "node tests/lighting.mjs",
+    "test:movement": "node tests/stealth-movement.mjs"
   },
   "engines": {
     "node": ">=22.13"

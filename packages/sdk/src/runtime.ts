@@ -37,6 +37,8 @@ export interface PlayerPose {
   grounded: boolean
   sitting: boolean
   velocity: Vector3Tuple
+  /** Optional horizontal speed already carried by the official pose protocol (m/s). */
+  speed?: number
 }
 
 export interface ClickSpec {

@@ -24,7 +24,11 @@ for(const [from,to]of [
  ['docs/RELEASE_NOTES.md','RELEASE_NOTES.md'],
 ]){cpSync(join(root,from),join(out,to));assets.push(to)}
 const releaseCaptures=[]
-for(const [from,scene]of [['after-courtyard.png','courtyard'],['after-study.png','study'],['play-courtyard.png','play']]){
+const selected=screenshots.captures.filter(c=>c.releaseScene)
+const sceneFiles=selected.length?selected.map(c=>[c.file,c.releaseScene]):[['after-courtyard.png','courtyard'],['after-study.png','study'],['play-courtyard.png','play']]
+if(sceneFiles.length!==3)throw Error('Exactly three release captures are required')
+for(const [from,scene]of sceneFiles){
+ if(!/^[a-z0-9-]+\.png$/.test(from)||!/^[a-z0-9-]+$/.test(scene))throw Error('Invalid capture asset name')
  const name=`oboro-v${version}-${scene}.png`;cpSync(join(evidence,from),join(out,name));assets.push(name)
  const capture=screenshots.captures.find(c=>c.file===from);if(!capture)throw Error(`Missing screenshot provenance: ${from}`)
  releaseCaptures.push({...capture,file:name,sourceCapture:from,sha256:createHash('sha256').update(readFileSync(join(out,name))).digest('hex')})
