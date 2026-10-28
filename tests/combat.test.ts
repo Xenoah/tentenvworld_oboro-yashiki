@@ -23,6 +23,7 @@ test('three wood strikes stagger then open an eight-second escape window without
  let s=start();for(let i=1;i<=3;i++)s=attack(s,i,t+4000+i*800)
  assert.equal(s.enemies[0].guard,0);assert.equal(s.enemies[0].mode,'stunned');assert.equal(s.score,0)
  assert.equal(s.enemies[0].stunUntil,t+6400+COMBAT.retreat)
+ s.held.a=1;s=command(s,{run:s.run,kind:'smoke:use'},p,t+6500,false);assert.equal(s.enemies[0].stunUntil,t+6400+COMBAT.retreat,'smoke must not shorten an existing guard break')
  s.startedAt=t-20000;s.protectedUntil.a=t+30000;s.updatedAt=t+6400
  s=tick(s,[p],t+7000);assert.equal(s.enemies[0].guard,0)
  s=tick(s,[p],t+15000);assert.equal(s.enemies[0].guard,100)
