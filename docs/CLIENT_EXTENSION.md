@@ -55,3 +55,5 @@ v1.2では `PlayerPose.speed?: number` を追加し、local playerの水平速�
 ## v1.4 スタミナによるダッシュ制限
 
 optionalな `locomotion.setSprintAllowed?(boolean | null)` を追加。WorldEngineは300msの期限を持ち、LocalPlayerはfalse中、デスクトップShiftとXRスティックの走行倍率を歩行相当に制限します。ワールドは100msごとに共有スタミナの状態から更新し、終了・アンマウント時は解除します。標準クライアントの単体importにはこの制限がないため、HP・木刀・気力のホスト判定は動作しますが、息切れ時の実速度制限は同梱クライアントが必要です。既存 `version: 1` へoptionalメソッドを足し、古い拡張との呼出互換性を維持しています。
+
+v1.4では `InstanceSession` の交代後再同期も修正。既存helloのstateEpochに未同期の-1を指定し、新ホストが確認済み参加者へsnapshotを再送します。wire message種別・チケット検証・権威条件は変更しません。交代先の全参加者へこのクライアント差分を適用してください。

@@ -182,7 +182,7 @@ export class InstanceSession {
     this.membersEv.emit()
   }
 
-  private sendHello(to: string) {
+  private sendHello(to: string, requestSnapshot = false) {
     this.t.sendR(to, {
       t: 'hello',
       v: PEER_PROTOCOL,
@@ -190,7 +190,8 @@ export class InstanceSession {
       avatar: this.myAvatar,
       allowContact: this.allowContact,
       hostScore: this.hostScore,
-      stateEpoch: this.epoch,
+      // -1 means this host's snapshot has not been acknowledged after an election.
+      stateEpoch: requestSnapshot ? -1 : this.epoch,
     })
     this.t.sendR(to, { t: 'expr', weights: this.myExpr.weights, gesture: this.myExpr.gesture })
   }
@@ -213,9 +214,11 @@ export class InstanceSession {
     if (!was) {
       // 初めて確認できた相手: 自分も名乗り直し、ホストなら同期状態を渡す
       this.sendHello(m.desc.peerId)
-      if (this.isHost()) this.sendSnapshot(m.desc.peerId)
     }
     this.electHost()
+    // A successor broadcast may arrive before this peer processes the old host leaving.
+    // Answer its post-election hello through the existing verified channel.
+    if (this.isHost() && (!was || Number(msg.stateEpoch) < this.epoch)) this.sendSnapshot(m.desc.peerId)
     this.membersEv.emit()
     this.avatarEv.emit(m.desc.peerId)
   }
@@ -248,6 +251,8 @@ export class InstanceSession {
       this.pending.clear()
       this.sendSnapshot('*')
     } else if (next !== this.selfId) {
+      this.synced = false
+      this.sendHello(next, true)
       // 新しいホストへ、確定していない変更を送り直す
       for (const [key, p] of this.pending) this.t.sendR(next, { t: 'set', key, value: p.value, nonce: p.nonce })
     }
