@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { useLoader } from '@react-three/fiber'
+import { useLoader, useThree } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useWorldEnv } from '@tentenv/sdk'
 import * as T from 'three'
@@ -12,15 +12,17 @@ const names = ['cedar','darkwood','tatami','plaster','paper','stone','roof','gra
 export type Materials = Record<typeof names[number] | 'brass' | 'ink' | 'leaf' | 'glow' | 'red', T.MeshStandardMaterial>
 export function useMaterials(): Materials {
   const env = useWorldEnv()
+  const detailed = useThree(s=>s.viewport.dpr>.6)
   const maps = useLoader(T.TextureLoader, names.flatMap(n=>[`${n}.webp`,`${n}-normal.webp`,`${n}-rough.webp`].map(f=>env.assetUrl(`textures/${f}`))))
-  return useMemo(()=>{
+  const result=useMemo(()=>{
     const materials = {} as Materials
     names.forEach((name,i)=>{
       const [map,normalMap,roughnessMap] = maps.slice(i*3,i*3+3)
       for (const t of [map,normalMap,roughnessMap]) { t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy=4 }
       map.colorSpace = T.SRGBColorSpace
       const lacquer=name==='darkwood',wood=name==='cedar',roof=name==='roof'
-      materials[name]=new T.MeshPhysicalMaterial({map,normalMap,roughnessMap,roughness:lacquer?.58:wood?.72:roof?.65:.96,normalScale:new T.Vector2(name==='stone'?.55:.35,name==='stone'?.55:.35),clearcoat:lacquer?.4:wood?.16:roof?.22:0,clearcoatRoughness:lacquer?.35:.55,color:name==='paper'?'#f0e5d3':'#ffffff'})
+      const basic={map,normalMap,roughnessMap,roughness:lacquer?.58:wood?.72:roof?.65:.96,normalScale:new T.Vector2(name==='stone'?.55:.35,name==='stone'?.55:.35),color:name==='paper'?'#f0e5d3':'#ffffff'}
+      materials[name]=detailed?new T.MeshPhysicalMaterial({...basic,clearcoat:lacquer?.4:wood?.16:roof?.22:0,clearcoatRoughness:lacquer?.35:.55}):new T.MeshStandardMaterial(basic)
     })
     materials.brass = new T.MeshStandardMaterial({color:'#c5a36b',metalness:.86,roughness:.29})
     materials.ink = new T.MeshStandardMaterial({color:'#18282a',roughness:.9})
@@ -28,7 +30,9 @@ export function useMaterials(): Materials {
     materials.glow = new T.MeshStandardMaterial({color:'#ffdd9b',emissive:'#ffad4d',emissiveIntensity:3.4,roughness:.8})
     materials.red = new T.MeshStandardMaterial({color:'#78392b',roughness:.7})
     return materials
-  },[maps])
+  },[maps,detailed])
+  useEffect(()=>()=>Object.values(result).forEach(material=>material.dispose()),[result])
+  return result
 }
 
 /** The same static mesh buffers feed the offline bake and this batched scene. */

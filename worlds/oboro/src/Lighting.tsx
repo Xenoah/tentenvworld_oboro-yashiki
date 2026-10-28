@@ -15,9 +15,9 @@ export const DEFAULT_VISUALS:VisualSettings={glow:.28,mode:'auto',shading:true}
 
 /** Artist-authored local sky radiance, prefiltered once for PBR reflections. No remote HDR. */
 export function SkyReflections(){
-  const {gl,scene}=useThree()
+  const {gl,scene}=useThree(),detailed=useThree(s=>s.viewport.dpr>.6),device=useDevice()
   useEffect(()=>{
-    if(!gl.extensions.get('EXT_color_buffer_float'))return
+    if(!detailed||device!=='desktop'||!gl.extensions.get('EXT_color_buffer_float'))return
     const old=scene.environment,oldIntensity=scene.environmentIntensity,w=256,h=128,data=new Float32Array(w*h*4)
     const moon=new T.Vector3(-.45,.75,.35).normalize()
     for(let y=0;y<h;y++)for(let x=0;x<w;x++){
@@ -33,7 +33,7 @@ export function SkyReflections(){
     scene.environment=target.texture;scene.environmentIntensity=.65
     texture.dispose();pmrem.dispose()
     return()=>{scene.environment=old;scene.environmentIntensity=oldIntensity;target.dispose()}
-  },[gl,scene])
+  },[gl,scene,detailed,device])
   return null
 }
 
