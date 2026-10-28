@@ -26,6 +26,8 @@ export const Hud: React.FC<{ engine: WorldEngine; onLeave: () => void; worldErro
   const placement = usePortalPlacement()
   const [vrOk, setVrOk] = useState(false)
   const [locked, setLocked] = useState(false)
+  const [dragLook,setDragLook]=useState(input.dragLook)
+  const [lockFailed,setLockFailed]=useState(false)
   const mobile = isMobileDevice()
   const vr = useSyncExternalStore((cb) => engine.runtime.onDeviceChange(cb), () => engine.player.vr, () => false)
   const count = useSyncExternalStore(
@@ -42,11 +44,14 @@ export const Hud: React.FC<{ engine: WorldEngine; onLeave: () => void; worldErro
     void isXRSupported().then(setVrOk)
     // エミュレーターなどは少し遅れて使えるようになる
     const t = setTimeout(() => void isXRSupported().then(setVrOk), 2500)
-    const h = () => setLocked(!!document.pointerLockElement)
+    const h = () => {setLocked(!!document.pointerLockElement);if(document.pointerLockElement)setLockFailed(false)}
+    const failed=()=>setLockFailed(true)
     document.addEventListener('pointerlockchange', h)
+    document.addEventListener('pointerlockerror', failed)
     return () => {
       clearTimeout(t)
       document.removeEventListener('pointerlockchange', h)
+      document.removeEventListener('pointerlockerror', failed)
     }
   }, [])
   // チャットや入力欄にいる間はワールドの入力を止める
@@ -84,6 +89,7 @@ export const Hud: React.FC<{ engine: WorldEngine; onLeave: () => void; worldErro
           {!server && !engine.ctx.dev && <span title={L('親サーバーと切れています。P2P でつながっている人とは続けられます', 'Server connection lost; P2P peers still connected')} style={{ color: '#fbbf24', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Icon name="warning" size={15} /> {L('サーバー切断', 'Server offline')}</span>}
           {engine.ctx.dev && <span style={{ color: 'var(--accent)' }}>{import.meta.env.VITE_OBORO_DEMO === '1' ? L('同じブラウザのタブで協力', 'Same-browser co-op') : 'DEV'}</span>}
         </div>
+        {!mobile&&dragLook&&<button className="btn small" data-testid="locked-look" onClick={()=>{input.setDragLook(false);setDragLook(false);input.requestLock()}}>{L('左ドラッグで視点・Eで操作（ロックへ戻す）','Drag to look · E to interact (use pointer lock)')}</button>}
         <div className="grow" />
         {vrOk && (
           <button className="btn primary" onClick={() => void enterVR()}>
@@ -97,9 +103,9 @@ export const Hud: React.FC<{ engine: WorldEngine; onLeave: () => void; worldErro
           <Icon name="menu" size={22} />
         </button>
       </div>
-      {!mobile && !locked && !open && (
+      {!mobile && !locked && !open && !dragLook && (
         <div className="notices" style={{ top: '40%' }}>
-          <div className="notice">{L('クリックで操作を始めます（Esc で解除・R でメニュー）', 'Click to play (Esc to release, R for menu)')}</div>
+          <div className="notice"><div data-testid="look-help">{lockFailed?L('視点ロックを利用できません。ドラッグ操作を選べます。','Pointer lock unavailable. Drag controls are available.'):L('クリックで視点ロック。利用できない場合はドラッグ操作を選べます。','Click to lock the pointer, or choose drag controls.')}</div><button className="btn small" data-testid="drag-look" style={{pointerEvents:'auto',marginTop:8}} onClick={()=>{input.setDragLook(true);setDragLook(true)}}>{L('ドラッグで見回す・Eで調べる','Drag to look · E to interact')}</button><div className="muted" style={{fontSize:11,marginTop:5}}>{L('Escで解除・Rでメニュー。ブラウザ設定の変更は不要です。','Esc to release, R for menu. No browser setting changes needed.')}</div></div>
         </div>
       )}
       <div className="notices">

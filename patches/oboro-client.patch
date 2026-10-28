@@ -188,7 +188,69 @@
          if (p.thirdPerson) {
 --- a/apps/client/src/player/input.ts
 +++ b/apps/client/src/player/input.ts
-@@ -159,7 +159,7 @@
+@@ -67,6 +67,14 @@
+   suspended = false
+   canvas: HTMLElement | null = null
+   private attached = false
++  /** Explicit desktop fallback: ordinary mouse drag, no Pointer Lock permission. */
++  dragLook = false
++  private dragPoint: { x:number; y:number } | null = null
++
++  setDragLook(enabled:boolean) {
++    this.dragLook=enabled;this.dragPoint=null;this.mouseDX=this.mouseDY=0
++    if(enabled&&document.pointerLockElement===this.canvas)void document.exitPointerLock()
++  }
+ 
+   attach(canvas: HTMLElement) {
+     this.canvas = canvas
+@@ -83,15 +91,22 @@
+       this.keys.clear()
+       this.rightMouseHeld = false
+       this.mouseHeld = false
++      this.dragPoint = null
+     })
+     window.addEventListener('mousemove', (e) => {
+       if (document.pointerLockElement === this.canvas) {
+         this.mouseDX += e.movementX
+         this.mouseDY += e.movementY
++      } else if(this.dragLook&&this.dragPoint&&!this.suspended) {
++        this.mouseDX+=e.clientX-this.dragPoint.x;this.mouseDY+=e.clientY-this.dragPoint.y
++        this.dragPoint={x:e.clientX,y:e.clientY}
+       }
+     })
+     window.addEventListener('mousedown', (e) => {
+-      if (document.pointerLockElement !== this.canvas) return
++      if (document.pointerLockElement !== this.canvas) {
++        if(this.dragLook&&!this.suspended&&e.target===this.canvas&&e.button===0){this.dragPoint={x:e.clientX,y:e.clientY};e.preventDefault()}
++        return
++      }
+       if (e.button === 0) {
+         this.clicked = true
+         this.mouseHeld = true
+@@ -103,9 +118,11 @@
+     })
+     window.addEventListener('mouseup', (e) => {
+       if (e.button === 0) this.mouseHeld = false
++      if (e.button === 0) this.dragPoint = null
+       if (e.button === 2) this.rightMouseHeld = false
+     })
+     document.addEventListener('pointerlockchange', () => {
++      this.dragPoint = null
+       if (document.pointerLockElement !== this.canvas) {
+         this.mouseHeld = false
+         this.rightMouseHeld = false
+@@ -142,7 +159,9 @@
+     this.tap = { x, y }
+   }
+   requestLock() {
+-    void this.canvas?.requestPointerLock?.()?.catch?.(() => {})
++    if(this.dragLook)return
++    const failed=()=>document.dispatchEvent(new Event('pointerlockerror'))
++    try {if(!this.canvas?.requestPointerLock){failed();return}void this.canvas.requestPointerLock()?.catch?.(failed)}catch{failed()}
+   }
+   locked() {
+     return document.pointerLockElement === this.canvas
+@@ -159,7 +178,7 @@
        f.moveX += (down('KeyD') || down('ArrowRight') ? 1 : 0) - (down('KeyA') || down('ArrowLeft') ? 1 : 0)
        f.run = down('ShiftLeft') || down('ShiftRight')
        f.jump = hit('Space')
@@ -197,7 +259,7 @@
        f.crouchToggle = hit('KeyC')
        f.proneToggle = hit('KeyZ')
        f.grabToggle = hit('KeyG')
-@@ -174,7 +174,7 @@
+@@ -174,7 +193,7 @@
        const sens = 0.0022 * s.mouseSensitivity
        f.lookYaw -= this.mouseDX * sens
        f.lookPitch -= this.mouseDY * sens * (s.invertY ? -1 : 1)
@@ -344,7 +406,32 @@
          },
 --- a/apps/client/src/ui/hud/Hud.tsx
 +++ b/apps/client/src/ui/hud/Hud.tsx
-@@ -81,8 +81,8 @@
+@@ -26,6 +26,8 @@
+   const placement = usePortalPlacement()
+   const [vrOk, setVrOk] = useState(false)
+   const [locked, setLocked] = useState(false)
++  const [dragLook,setDragLook]=useState(input.dragLook)
++  const [lockFailed,setLockFailed]=useState(false)
+   const mobile = isMobileDevice()
+   const vr = useSyncExternalStore((cb) => engine.runtime.onDeviceChange(cb), () => engine.player.vr, () => false)
+   const count = useSyncExternalStore(
+@@ -42,11 +44,14 @@
+     void isXRSupported().then(setVrOk)
+     // エミュレーターなどは少し遅れて使えるようになる
+     const t = setTimeout(() => void isXRSupported().then(setVrOk), 2500)
+-    const h = () => setLocked(!!document.pointerLockElement)
++    const h = () => {setLocked(!!document.pointerLockElement);if(document.pointerLockElement)setLockFailed(false)}
++    const failed=()=>setLockFailed(true)
+     document.addEventListener('pointerlockchange', h)
++    document.addEventListener('pointerlockerror', failed)
+     return () => {
+       clearTimeout(t)
+       document.removeEventListener('pointerlockchange', h)
++      document.removeEventListener('pointerlockerror', failed)
+     }
+   }, [])
+   // チャットや入力欄にいる間はワールドの入力を止める
+@@ -81,25 +86,26 @@
          <div className="pill">
            <b>{engine.ctx.world.name}</b>
            <span className="muted row" style={{ gap: 4 }}><Icon name="users" size={15} /> {count}</span>
@@ -353,9 +440,10 @@
 +          {!server && !engine.ctx.dev && <span title={L('親サーバーと切れています。P2P でつながっている人とは続けられます', 'Server connection lost; P2P peers still connected')} style={{ color: '#fbbf24', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Icon name="warning" size={15} /> {L('サーバー切断', 'Server offline')}</span>}
 +          {engine.ctx.dev && <span style={{ color: 'var(--accent)' }}>{import.meta.env.VITE_OBORO_DEMO === '1' ? L('同じブラウザのタブで協力', 'Same-browser co-op') : 'DEV'}</span>}
          </div>
++        {!mobile&&dragLook&&<button className="btn small" data-testid="locked-look" onClick={()=>{input.setDragLook(false);setDragLook(false);input.requestLock()}}>{L('左ドラッグで視点・Eで操作（ロックへ戻す）','Drag to look · E to interact (use pointer lock)')}</button>}
          <div className="grow" />
          {vrOk && (
-@@ -90,9 +90,9 @@
+           <button className="btn primary" onClick={() => void enterVR()}>
              <Icon name="vr" size={18} /> VR
            </button>
          )}
@@ -367,6 +455,15 @@
          <button className="btn icon" onClick={() => menuBus.toggle()} title={L('メニュー（R / Esc）', 'Menu (R / Esc)')}>
            <Icon name="menu" size={22} />
          </button>
+       </div>
+-      {!mobile && !locked && !open && (
++      {!mobile && !locked && !open && !dragLook && (
+         <div className="notices" style={{ top: '40%' }}>
+-          <div className="notice">{L('クリックで操作を始めます（Esc で解除・R でメニュー）', 'Click to play (Esc to release, R for menu)')}</div>
++          <div className="notice"><div data-testid="look-help">{lockFailed?L('視点ロックを利用できません。ドラッグ操作を選べます。','Pointer lock unavailable. Drag controls are available.'):L('クリックで視点ロック。利用できない場合はドラッグ操作を選べます。','Click to lock the pointer, or choose drag controls.')}</div><button className="btn small" data-testid="drag-look" style={{pointerEvents:'auto',marginTop:8}} onClick={()=>{input.setDragLook(true);setDragLook(true)}}>{L('ドラッグで見回す・Eで調べる','Drag to look · E to interact')}</button><div className="muted" style={{fontSize:11,marginTop:5}}>{L('Escで解除・Rでメニュー。ブラウザ設定の変更は不要です。','Esc to release, R for menu. No browser setting changes needed.')}</div></div>
+         </div>
+       )}
+       <div className="notices">
 --- a/apps/client/src/App.tsx
 +++ b/apps/client/src/App.tsx
 @@ -11,6 +11,7 @@

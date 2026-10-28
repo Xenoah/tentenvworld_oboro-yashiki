@@ -67,6 +67,14 @@ class InputManager {
   suspended = false
   canvas: HTMLElement | null = null
   private attached = false
+  /** Explicit desktop fallback: ordinary mouse drag, no Pointer Lock permission. */
+  dragLook = false
+  private dragPoint: { x:number; y:number } | null = null
+
+  setDragLook(enabled:boolean) {
+    this.dragLook=enabled;this.dragPoint=null;this.mouseDX=this.mouseDY=0
+    if(enabled&&document.pointerLockElement===this.canvas)void document.exitPointerLock()
+  }
 
   attach(canvas: HTMLElement) {
     this.canvas = canvas
@@ -83,15 +91,22 @@ class InputManager {
       this.keys.clear()
       this.rightMouseHeld = false
       this.mouseHeld = false
+      this.dragPoint = null
     })
     window.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement === this.canvas) {
         this.mouseDX += e.movementX
         this.mouseDY += e.movementY
+      } else if(this.dragLook&&this.dragPoint&&!this.suspended) {
+        this.mouseDX+=e.clientX-this.dragPoint.x;this.mouseDY+=e.clientY-this.dragPoint.y
+        this.dragPoint={x:e.clientX,y:e.clientY}
       }
     })
     window.addEventListener('mousedown', (e) => {
-      if (document.pointerLockElement !== this.canvas) return
+      if (document.pointerLockElement !== this.canvas) {
+        if(this.dragLook&&!this.suspended&&e.target===this.canvas&&e.button===0){this.dragPoint={x:e.clientX,y:e.clientY};e.preventDefault()}
+        return
+      }
       if (e.button === 0) {
         this.clicked = true
         this.mouseHeld = true
@@ -103,9 +118,11 @@ class InputManager {
     })
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseHeld = false
+      if (e.button === 0) this.dragPoint = null
       if (e.button === 2) this.rightMouseHeld = false
     })
     document.addEventListener('pointerlockchange', () => {
+      this.dragPoint = null
       if (document.pointerLockElement !== this.canvas) {
         this.mouseHeld = false
         this.rightMouseHeld = false
@@ -142,7 +159,9 @@ class InputManager {
     this.tap = { x, y }
   }
   requestLock() {
-    void this.canvas?.requestPointerLock?.()?.catch?.(() => {})
+    if(this.dragLook)return
+    const failed=()=>document.dispatchEvent(new Event('pointerlockerror'))
+    try {if(!this.canvas?.requestPointerLock){failed();return}void this.canvas.requestPointerLock()?.catch?.(failed)}catch{failed()}
   }
   locked() {
     return document.pointerLockElement === this.canvas
