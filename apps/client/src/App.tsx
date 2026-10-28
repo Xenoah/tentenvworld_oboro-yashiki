@@ -11,6 +11,7 @@ import { Home } from './ui/screens/Home'
 import { playUiClick } from './ui/clickSound'
 import { LoadingParticles } from './ui/LoadingParticles'
 import { applyBrowserBranding } from './ui/Brand'
+import { GraphicsGuard } from './ui/GraphicsGuard'
 // 3D の部分は必要になってから読み込む（ホーム画面を速く開くため）
 const WorldSession = lazy(() => import('./world/WorldSession').then((m) => ({ default: m.WorldSession })))
 
@@ -107,11 +108,11 @@ export const App: React.FC = () => {
   }, [])
 
   let body: React.ReactNode
-  if (screen.kind === 'dev') body = <WorldSession devUrl={screen.worldUrl} />
+  if (screen.kind === 'dev') body = <GraphicsGuard><WorldSession devUrl={screen.worldUrl} /></GraphicsGuard>
   else if (!me || screen.kind === 'connect') body = sharedWorld && !showConnect
     ? <SharedWorld worldId={sharedWorld.world} server={sharedWorld.server} onContinue={() => setShowConnect(true)} />
     : <Connect initialServer={sharedWorld?.server} />
-  else if (screen.kind === 'world') body = <WorldSession instanceId={screen.instanceId} />
+  else if (screen.kind === 'world') body = <GraphicsGuard><WorldSession instanceId={screen.instanceId} /></GraphicsGuard>
   else body = <Home />
   return (
     <>

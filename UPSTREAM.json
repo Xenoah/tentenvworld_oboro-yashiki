@@ -25,7 +25,9 @@
     "apps/client/src/main.tsx",
     "apps/client/src/ui/Brand.tsx",
     "apps/client/src/world/WorldSession.tsx",
-    "apps/client/src/ui/hud/Hud.tsx"
+    "apps/client/src/ui/hud/Hud.tsx",
+    "apps/client/src/App.tsx",
+    "apps/client/src/ui/GraphicsGuard.tsx"
   ],
   "noUpstreamPushOrPR": true
 }

@@ -18,6 +18,7 @@ export class LocalTransport implements Transport {
   private uEv = new Emitter<[string, ArrayBuffer]>()
   private peerEv = new Emitter<[{ kind: 'join' | 'leave' | 'link'; peerId: string }]>()
   private discoveryTick = 0
+  private lastSweep = Date.now()
   private timer: ReturnType<typeof setInterval>
 
   constructor(room: string, user: UserSummary) {
@@ -27,11 +28,15 @@ export class LocalTransport implements Transport {
     this.ch.onmessage = (e) => this.onWire(e.data as Wire)
     this.post({ k: 'hello', from: this.self, reply: false })
     this.timer = setInterval(() => {
+      const now = Date.now()
+      // A stalled renderer delays both this timer and queued BroadcastChannel messages.
+      // Give the incoming queue a turn before deciding that its peers disappeared.
+      const resumed = now - this.lastSweep > 3000
+      this.lastSweep = now
       this.post({ k: 'beat', from: this.selfId })
       // Retry discovery after slow tab startup. Session hello still uses its normal validation.
       if (++this.discoveryTick % 3 === 0) this.post({ k: 'hello', from: this.self, reply: false })
-      const now = Date.now()
-      for (const [id, p] of this.known) if (now - p.seen > 4000) this.drop(id)
+      if (!resumed) for (const [id, p] of this.known) if (now - p.seen > 15000) this.drop(id)
     }, 1000)
     window.addEventListener('pagehide', this.bye)
   }

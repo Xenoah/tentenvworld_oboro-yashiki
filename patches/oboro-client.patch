@@ -191,24 +191,34 @@
      }
 --- a/apps/client/src/net/local.ts
 +++ b/apps/client/src/net/local.ts
-@@ -17,6 +17,7 @@
+@@ -17,6 +17,8 @@
    private rEv = new Emitter<[string, unknown]>()
    private uEv = new Emitter<[string, ArrayBuffer]>()
    private peerEv = new Emitter<[{ kind: 'join' | 'leave' | 'link'; peerId: string }]>()
 +  private discoveryTick = 0
++  private lastSweep = Date.now()
    private timer: ReturnType<typeof setInterval>
  
    constructor(room: string, user: UserSummary) {
-@@ -27,6 +28,8 @@
+@@ -26,9 +28,15 @@
+     this.ch.onmessage = (e) => this.onWire(e.data as Wire)
      this.post({ k: 'hello', from: this.self, reply: false })
      this.timer = setInterval(() => {
++      const now = Date.now()
++      // A stalled renderer delays both this timer and queued BroadcastChannel messages.
++      // Give the incoming queue a turn before deciding that its peers disappeared.
++      const resumed = now - this.lastSweep > 3000
++      this.lastSweep = now
        this.post({ k: 'beat', from: this.selfId })
+-      const now = Date.now()
+-      for (const [id, p] of this.known) if (now - p.seen > 4000) this.drop(id)
 +      // Retry discovery after slow tab startup. Session hello still uses its normal validation.
 +      if (++this.discoveryTick % 3 === 0) this.post({ k: 'hello', from: this.self, reply: false })
-       const now = Date.now()
-       for (const [id, p] of this.known) if (now - p.seen > 4000) this.drop(id)
++      if (!resumed) for (const [id, p] of this.known) if (now - p.seen > 15000) this.drop(id)
      }, 1000)
-@@ -49,8 +52,9 @@
+     window.addEventListener('pagehide', this.bye)
+   }
+@@ -49,8 +57,9 @@
        if (!w.reply) this.post({ k: 'hello', from: this.self, reply: true })
        if (isNew) {
          this.peerEv.emit({ kind: 'join', peerId: w.from.peerId })
@@ -340,3 +350,68 @@
          <button className="btn icon" onClick={() => menuBus.toggle()} title={L('メニュー（R / Esc）', 'Menu (R / Esc)')}>
            <Icon name="menu" size={22} />
          </button>
+--- a/apps/client/src/App.tsx
++++ b/apps/client/src/App.tsx
+@@ -11,6 +11,7 @@
+ import { playUiClick } from './ui/clickSound'
+ import { LoadingParticles } from './ui/LoadingParticles'
+ import { applyBrowserBranding } from './ui/Brand'
++import { GraphicsGuard } from './ui/GraphicsGuard'
+ // 3D の部分は必要になってから読み込む（ホーム画面を速く開くため）
+ const WorldSession = lazy(() => import('./world/WorldSession').then((m) => ({ default: m.WorldSession })))
+ 
+@@ -107,11 +108,11 @@
+   }, [])
+ 
+   let body: React.ReactNode
+-  if (screen.kind === 'dev') body = <WorldSession devUrl={screen.worldUrl} />
++  if (screen.kind === 'dev') body = <GraphicsGuard><WorldSession devUrl={screen.worldUrl} /></GraphicsGuard>
+   else if (!me || screen.kind === 'connect') body = sharedWorld && !showConnect
+     ? <SharedWorld worldId={sharedWorld.world} server={sharedWorld.server} onContinue={() => setShowConnect(true)} />
+     : <Connect initialServer={sharedWorld?.server} />
+-  else if (screen.kind === 'world') body = <WorldSession instanceId={screen.instanceId} />
++  else if (screen.kind === 'world') body = <GraphicsGuard><WorldSession instanceId={screen.instanceId} /></GraphicsGuard>
+   else body = <Home />
+   return (
+     <>
+--- /dev/null
++++ b/apps/client/src/ui/GraphicsGuard.tsx
+@@ -0,0 +1,38 @@
++import { Component, useState, type ReactNode } from 'react'
++
++/** Runs before the 3D module mounts, so a disabled GPU still has a usable DOM UI. */
++const hasWebGL2 = () => {
++  try {
++    const canvas = document.createElement('canvas')
++    const gl = canvas.getContext('webgl2')
++    if (!gl) return false
++    gl.getExtension('WEBGL_lose_context')?.loseContext()
++    return true
++  } catch { return false }
++}
++
++const GraphicsUnavailable = () => (
++  <main data-testid="graphics-unavailable" role="alert" style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24, background: '#101b20', color: '#ede6cf' }}>
++    <section style={{ maxWidth: 560, padding: 28, border: '1px solid #827952', borderRadius: 16, lineHeight: 1.8 }}>
++      <p style={{ color: '#c7b77e' }}>朧の屋敷 — OBORO</p>
++      <h1 style={{ fontSize: 25 }}>3D画面を開始できませんでした</h1>
++      <p>このブラウザでは WebGL 2 の描画を利用できないか、描画の初期化に失敗しました。この画面ではゲーム操作を続けられません。</p>
++      <p>WebGL 2 に対応した通常のブラウザ・端末で開いてください。管理された環境では、利用できる機能が制限される場合があります。</p>
++      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 24 }}>
++        <button type="button" data-testid="graphics-retry" onClick={() => location.reload()}>再試行</button>
++        <a data-testid="graphics-back" href={import.meta.env.VITE_OBORO_DEMO === '1' ? new URL('../', new URL(import.meta.env.BASE_URL, location.origin)).href : new URL(import.meta.env.BASE_URL, location.origin).href} style={{ color: '#ede6cf' }}>入口へ戻る</a>
++      </div>
++    </section>
++  </main>
++)
++
++class GraphicsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
++  state = { failed: false }
++  static getDerivedStateFromError() { return { failed: true } }
++  render() { return this.state.failed ? <GraphicsUnavailable /> : this.props.children }
++}
++
++export const GraphicsGuard = ({ children }: { children: ReactNode }) => {
++  const [available] = useState(hasWebGL2)
++  return available ? <GraphicsBoundary>{children}</GraphicsBoundary> : <GraphicsUnavailable />
++}
