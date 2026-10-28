@@ -18,6 +18,7 @@ try{
   await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.get('w:oboro:game')?.phase==='running')
   if(mobile){
    const combat=await p.getByTestId('combat').boundingBox(),movement=await p.locator('.oboro-movement').boundingBox();assert.ok(combat.x>=0&&combat.x+combat.width<=390);assert.ok(combat.y+combat.height<=movement.y||movement.y+movement.height<=combat.y,'combat and landing HUD must not overlap');
+   for(const width of [390,320]){await p.setViewportSize({width,height:844});const voice=await p.getByTestId('voice-zone').boundingBox(),health=await p.getByTestId('combat').boundingBox();assert.ok(voice.x>=0&&voice.x+voice.width<=width);assert.ok(voice.x>=health.x+health.width||voice.y+voice.height<=health.y||voice.y>=health.y+health.height,'voice controls and combat HUD must not overlap');await p.getByTestId('voice-effects').tap();await p.getByTestId('voice-effects').filter({hasText:'切'}).waitFor();await p.getByTestId('voice-effects').tap()};await p.setViewportSize({width:390,height:844});
    await p.waitForFunction(()=>{const r=window.__ttvEngine.runtime;return r.clock().now()>r.state.get('w:oboro:game').startedAt});await p.getByTestId('attack').tap();await p.waitForFunction(()=>{const r=window.__ttvEngine.runtime;return r.state.get('w:oboro:game').vitals[r.self().peerId].attackSeq>0});
    const b=await p.locator('.touch-stick').boundingBox();const before=await p.evaluate(()=>window.__ttvEngine.player.position.z)
    await p.mouse.move(b.x+b.width/2,b.y+b.height/2);await p.mouse.down();await p.mouse.move(b.x+b.width/2,b.y+8)
