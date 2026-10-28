@@ -11,6 +11,7 @@ try{
  const wait=(p,fn,arg)=>p.waitForFunction(fn,arg,{timeout:60000,polling:100}),record=name=>{results.push(name);console.log('PASS',name)}
  const open=async()=>{const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(new URL('play/?debug=1',base).href);await p.waitForFunction(()=>window.__ttvEngine?.interactables.size>20,null,{timeout:120000,polling:100});return p}
  const state=p=>p.evaluate(()=>window.__ttvEngine.runtime.state.get('w:oboro:game'))
+ const effects=p=>wait(p,()=>document.querySelector('canvas')?.dataset.oboroEffectRun===String(window.__ttvEngine.runtime.state.get('w:oboro:game').run))
  const a=await open();await a.getByTestId('start').click();const b=await open()
  await wait(a,()=>window.__ttvEngine.runtime.players().length===2)
  const bid=await b.evaluate(()=>window.__ttvEngine.runtime.self().peerId)
@@ -27,6 +28,7 @@ try{
  record('guest keyboard sprint produces identical host-authored event on both tabs; low quality blur is off')
  const c=await open();await wait(c,id=>window.__ttvEngine.runtime.state.get('w:oboro:game').noiseSerial>=id,noise.id)
  await wait(c,id=>!!window.__ttvEngine.runtime.state.get('w:oboro:game').motion[id],bid)
+ await effects(c)
  assert.equal(await c.evaluate(()=>Number(document.querySelector('canvas').dataset.oboroDust)),0)
  record('late join receives noise sequence and motion snapshot without replaying expired dust')
  const serial=(await state(b)).noiseSerial
@@ -38,7 +40,7 @@ try{
  await b.evaluate(()=>{const rt=window.__ttvEngine.runtime,s=structuredClone(rt.state.get('w:oboro:game'));s.startedAt=rt.clock().now()-901000;rt.state.set('w:oboro:game',s)})
  await wait(c,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase==='lost');await b.getByTestId('start').click()
  await wait(c,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').run===2)
- for(const p of [b,c]){const s=await state(p);assert.equal(s.noiseSerial,0);assert.deepEqual(s.disturbances,[]);assert.equal(await p.evaluate(()=>Number(document.querySelector('canvas').dataset.oboroDust)),0)}
+ for(const p of [b,c]){await effects(p);const s=await state(p);assert.equal(s.noiseSerial,0);assert.deepEqual(s.disturbances,[]);assert.equal(await p.evaluate(()=>Number(document.querySelector('canvas').dataset.oboroDust)),0)}
  record('new host restart clears noise and effects on every remaining tab')
  assert.equal(errors.length,0,errors.join('\n'))
 }catch(e){errors.push(String(e));throw e}finally{writeFileSync(`${output}/movement-sync-results.json`,JSON.stringify({transport:'LocalTransport / BroadcastChannel; three real Chromium tabs in one browser context',results,errors},null,2));await browser.close()}

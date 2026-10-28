@@ -47,7 +47,7 @@ try{
  const audio=await p.evaluate(()=>({state:window.__ttvEngine.runtime.audioListener().context.state,played:Number(document.querySelector('canvas').dataset.oboroFootsteps)}));assert.equal(audio.state,'running');assert.ok(audio.played>0);record('footstep playback uses actual positional audio nodes without microphone',audio)
  // Game rule resolves a timeout, then visible restart must clear new state and local effects.
  await tp([0,.1,13]);await p.evaluate(()=>{const rt=window.__ttvEngine.runtime,s=structuredClone(rt.state.get('w:oboro:game'));s.startedAt=rt.clock().now()-901000;rt.state.set('w:oboro:game',s)})
- await p.getByTestId('start').click();await wait(()=>window.__ttvEngine.runtime.state.get('w:oboro:game').run===2)
+ await p.getByTestId('start').click();await wait(()=>window.__ttvEngine.runtime.state.get('w:oboro:game').run===2&&document.querySelector('canvas')?.dataset.oboroEffectRun==='2')
  data=await snap();assert.equal(data.state.noiseSerial,0);assert.deepEqual(data.state.disturbances,[]);assert.equal(data.dust,0);assert.equal(data.blur,0);record('restart clears noise, dust, blur and landing outcome')
  assert.equal(errors.length,0,errors.join('\n'))
  writeFileSync(`${output}/screenshots.json`,JSON.stringify({version:JSON.parse(readFileSync('package.json','utf8')).version,commit:build.commit,buildDirty:build.dirty??true,capturedAt:new Date().toISOString(),url:base,execution:'Real Chromium on local static server of release build; not public URL verification',viewport:[1024,720],quality:'high',renderScale:.7,shadows:false,captures},null,2))
