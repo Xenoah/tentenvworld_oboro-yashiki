@@ -10,7 +10,7 @@ export type MovementVisual={intensity:number;mode:'idle'|'run'|'jump';dust:numbe
 const LABELS={sand:'砂',stone:'石',wood:'板床',tatami:'畳',water:'水中',magic:'特殊空間'}
 const COUNT=160
 export function MovementEffects({state,sound,visual}:{state:GameState;sound:boolean;visual:MutableRefObject<MovementVisual>}){
-  const rt=useRuntime(),{gl,scene}=useThree(),latest=useRef(state),lastPose=useRef<V3|null>(null),lastNoise=useRef(0),lastRun=useRef(-1),rightButton=useRef(false)
+  const rt=useRuntime(),{gl,scene}=useThree(),latest=useRef(state),lastPose=useRef<V3|null>(null),lastNoise=useRef(0),lastRun=useRef(-1),movementReady=useRef(false),rightButton=useRef(false)
   latest.current=state
   const [display,setDisplay]=useState({surface:'stone' as keyof typeof LABELS,air:false,ready:false,armed:false,missed:false,result:''}),lastUI=useRef('')
   const particles=useMemo(()=>Array.from({length:COUNT},()=>({life:0,max:.8,p:new T.Vector3(),v:new T.Vector3(),size:0})),[])
@@ -24,14 +24,19 @@ export function MovementEffects({state,sound,visual}:{state:GameState;sound:bool
   },[rt])
   useEffect(()=>()=>{geometry.dispose();material.dispose();for(const a of audio.current){if(a.isPlaying)a.stop();scene.remove(a);a.disconnect()}},[geometry,material,scene])
   useFrame((_,rawDt)=>{
-    const dt=Math.min(.1,rawDt),now=rt.clock().now(),s=latest.current,id=rt.self().peerId,pose=rt.pose(id),running=s.phase==='running'
+    const dt=Math.min(.1,rawDt),now=rt.clock().now(),s=latest.current,id=rt.self().peerId,pose=rt.pose(id),running=s.phase==='running'&&now>=s.startedAt
     const reset=lastRun.current!==s.run||!running
-    if(reset){playedSounds.current=0;lastRun.current=s.run;lastNoise.current=s.noiseSerial??0;for(const p of particles)p.life=0;lastPose.current=null;visual.current.intensity=0;visual.current.mode='idle';for(const a of audio.current){if(a.isPlaying)a.stop();scene.remove(a);a.disconnect()}audio.current=[]}
+    if(reset){movementReady.current=false;playedSounds.current=0;lastRun.current=s.run;lastNoise.current=s.noiseSerial??0;for(const p of particles)p.life=0;lastPose.current=null;visual.current.intensity=0;visual.current.mode='idle';for(const a of audio.current){if(a.isPlaying)a.stop();scene.remove(a);a.disconnect()}audio.current=[]}
     if(pose){
       const moved=lastPose.current?distance(lastPose.current,pose.position):0,teleport=moved>2.3
       const speed=pose.speed??Math.hypot(pose.velocity[0],pose.velocity[2]),air=!pose.grounded&&ordinaryGround(pose.position)
-      const mode=running&&!teleport?(air?'jump':speed>2.8&&moved>.005?'run':'idle'):'idle'
-      visual.current.mode=mode;visual.current.intensity=T.MathUtils.damp(visual.current.intensity,mode==='run'?Math.min(1,(speed-2.5)/2):mode==='jump'?.65:0,teleport?100:8,dt)
+      // A reset/warp's small drop is not a jump. Wait for an actual grounded pose
+      // before enabling motion effects, and keep countdown frames exactly clear.
+      if(teleport)movementReady.current=false
+      if(running&&!reset&&!teleport&&pose.grounded)movementReady.current=true
+      const ready=running&&!reset&&!teleport&&movementReady.current
+      const mode=ready?(air?'jump':speed>2.8&&moved>.005?'run':'idle'):'idle'
+      visual.current.mode=mode;visual.current.intensity=ready?T.MathUtils.damp(visual.current.intensity,mode==='run'?Math.min(1,(speed-2.5)/2):mode==='jump'?.65:0,8,dt):0
       lastPose.current=[...pose.position]
       const m=s.motion?.[id],landing=m?.lastLanding,recent=landing&&!m?.airFrom
       const next={surface:groundSurface(pose.position),air:running&&air,ready:!!m&&quietWindow(m,pose.position),armed:!!m?.braceUsed,missed:!!m?.braceUsed&&!m.braceAt,result:recent?(landing.quiet?'静音着地 成功':'足音が響いた — 忍者に注意'):''}
