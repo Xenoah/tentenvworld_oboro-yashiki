@@ -25,9 +25,12 @@ try{
  await p.getByTestId('visual-settings').click();await p.getByTestId('motion-blur').focus();await p.keyboard.press('Home');await p.getByTestId('visual-settings').click();assert.deepEqual(await pose(),stopped)
  results.push('released mouse and HUD controls do not rotate the camera')
  // Position fixture only: E must use the real ray interaction and authoritative rune command.
- await p.evaluate(()=>{const e=window.__ttvEngine;e.runtime.teleport([-11.8,.1,3],0);e.player.pitch=-.2})
+ // v1.3 reshuffles the rune order per round: aim at whichever rune is first this round.
+ const runeX=await p.evaluate(()=>({moon:-11.8,wave:-13,pine:-14.2})[window.__oboro.layout().runeOrder[0]])
+ await p.waitForFunction(()=>{const rt=window.__ttvEngine.runtime,s=rt.state.get('w:oboro:game');return rt.clock().now()>s.startedAt+150},null,{timeout:30000})
+ await p.evaluate(x=>{const e=window.__ttvEngine;e.runtime.teleport([x,.1,3],0);e.player.pitch=-.2},runeX)
  await wait(()=>!window.__ttvEngine.pendingTeleport);await p.waitForTimeout(600)
- await p.evaluate(()=>{const e=window.__ttvEngine,p=e.player.head.p;e.player.pitch=Math.atan2(1.2-p.y,Math.hypot(p.x+11.8,p.z-1))})
+ await p.evaluate(x=>{const e=window.__ttvEngine,p=e.player.head.p;e.player.pitch=Math.atan2(1.2-p.y,Math.hypot(p.x-x,p.z-1))},runeX)
  await p.waitForTimeout(600);await p.keyboard.press('KeyE');await wait(()=>window.__ttvEngine.runtime.state.get('w:oboro:game').rune===1)
  results.push('E interacts with the actual first rune while Pointer Lock remains unavailable')
  await p.screenshot({path:`${output}/drag-look.png`,timeout:60000})

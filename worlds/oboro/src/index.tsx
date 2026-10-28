@@ -48,7 +48,7 @@ function useGame(){
   useEffect(()=>{
     if(last.current.run!==state.run||last.current.phase!==state.phase){
       rt.locomotion?.set(null);rt.teleport(SPAWN,0)
-      setMessage(state.phase==='running'?'印・星・光る輪には触れるだけ。橙の輪は縁側の縄。忍者は中庭を巡回する。':state.reason||'準備ができたら探索を始めよう。')
+      setMessage(state.phase==='running'?'探索開始。印・星・光る輪には触れるだけ。橙の輪は縁側の縄。':state.reason||'準備ができたら探索を始めよう。')
       if(state.phase==='won'){const time=Math.round(elapsed(state,state.endedAt));const next={score:Math.max(best.score,state.score),time:best.time?Math.min(best.time,time):time};setBest(next);void store.player.set('oboro-best',next.score).then(()=>store.player.set('oboro-best-time',next.time)).catch(()=>{})}
     }
     if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/${required(state).length}${ready(state)?' — 脱出門へ！':''}`);play(rt.audioListener(),'seal')}
@@ -66,6 +66,8 @@ function useGame(){
   useEffect(()=>{const n=state.clouds?.length??0;if(n>clouds.current)play(rt.audioListener(),'smoke');clouds.current=n},[state.clouds?.length])
   useEffect(()=>{const key=(e:KeyboardEvent)=>{const t=e.target as HTMLElement|null;if(e.code==='KeyB'&&!e.repeat&&!/INPUT|TEXTAREA|SELECT/.test(t?.tagName??'')&&!t?.isContentEditable)rt.events.emit('oboro:command',{run:stateRef.current.run,kind:'smoke:use'},'host')};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[rt])
   const stateRef=useRef(state);stateRef.current=state
+  // Read-only hook for browser tests and debugging: this round's puzzle layout.
+  useEffect(()=>{(window as unknown as {__oboro?:unknown}).__oboro={layout:()=>layoutOf(stateRef.current),valves:()=>layoutOf(stateRef.current).valves.map(i=>VALVE_SPOTS[i])}},[])
   return {state,send,host,players,message,setMessage,best,held:state.held?.[me]??0}
 }
 type Game=ReturnType<typeof useGame>
@@ -189,14 +191,15 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
   </>
 }
 function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolean}){
-  const rt=useRuntime(),running=g.state.phase==='running',pads=comfort||!rt.locomotion
+  // Wall/ceiling walking clamps the extended client to the wall plane, so only the standard client uses footrest pads here.
+  const rt=useRuntime(),running=g.state.phase==='running',pads=!rt.locomotion
   const enter=(mode:'wall'|'ceiling'|'floor')=>{
     if(!running)return
     const p:V3=mode==='wall'?[10,1.5,-18]:mode==='ceiling'?[14,rt.locomotion?5.78:4.3,-19]:[14,.1,-13.2]
     markWarp();rt.events.emit('oboro:surface-local',{mode},rt.self().peerId);rt.teleport(p,0);play(rt.audioListener(),'warp')
   }
   return <>
-    <Pad position={[11.2,.06,-16]} label={pads?'壁の足場へ':'壁を歩く'} color="#f4d49b" onEnter={()=>enter('wall')} enabled={running}/>
+    <Pad position={[11.2,.06,-16]} label={pads||comfort?'壁の足場へ':'壁を歩く'} color="#f4d49b" onEnter={()=>enter('wall')} enabled={running}/>
     {pads?<>
       <Pad position={[10.6,1.43,-17.3]} radius={.35} label="天井へ渡る" color="#f4d49b" onEnter={()=>enter('ceiling')} enabled={running}/>
       <Pad position={[13.3,4.23,-18.3]} radius={.35} label="床に戻る" onEnter={()=>enter('floor')} enabled={running}/>

@@ -9,7 +9,7 @@ try{
  const ctx=await browser.newContext({viewport:{width:960,height:640}})
  await ctx.addInitScript(()=>localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'low',renderScale:.5,shadows:false,autoEnterVR:false})))
  const wait=(p,fn,arg)=>p.waitForFunction(fn,arg,{timeout:60000,polling:100}),record=name=>{results.push(name);console.log('PASS',name)}
- const open=async()=>{const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(new URL('play/?debug=1',base).href);await p.waitForFunction(()=>window.__ttvEngine?.interactables.size>20,null,{timeout:120000,polling:100});return p}
+ const open=async()=>{const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(new URL('play/?debug=1',base).href);await p.waitForFunction(()=>window.__ttvEngine?.interactables.size>15,null,{timeout:120000,polling:100});return p}
  const state=p=>p.evaluate(()=>window.__ttvEngine.runtime.state.get('w:oboro:game'))
  const effects=p=>wait(p,()=>document.querySelector('canvas')?.dataset.oboroEffectRun===String(window.__ttvEngine.runtime.state.get('w:oboro:game').run))
  const a=await open();await a.getByTestId('start').click();const b=await open()
