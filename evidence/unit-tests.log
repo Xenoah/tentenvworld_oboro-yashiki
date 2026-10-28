@@ -1,0 +1,24 @@
+
+> oboro-ninja-yashiki@1.0.0 test
+> node --import tsx --test tests/*.test.ts
+
+✔ one player can finish all five sections, escape and restart (2.134941ms)
+✔ host start only, distance and round reject stale/spoofed/out-of-range commands (0.183837ms)
+✔ keys are shared, duplicate pickup is idempotent, gated keys cannot bypass puzzles (0.365872ms)
+✔ sequence is solo solvable and wrong rune resets; stars enforce order (0.272651ms)
+✔ late join gets shared snapshot, spawn protection, disconnect prunes, host migration keeps state (0.545543ms)
+✔ terminal outcome cannot be overwritten by attacks or later commands (0.394756ms)
+✔ attack has windup, requires range and clear sight; retreat cancels (0.713837ms)
+✔ recovery is penalized once per cooldown; max four active players and bounded JSON (0.42424ms)
+✔ difficulty changes scoring and deadlines; no mid-run changes (0.806507ms)
+✔ teleport from water to vault cannot inherit water clamps (0.707668ms)
+✔ wall to ceiling uses new valid profile atomically, rescue drops it (0.142795ms)
+✔ expired or removed movement lease restores ordinary gravity (0.105489ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103.134415

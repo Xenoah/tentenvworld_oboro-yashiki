@@ -44,7 +44,7 @@ export function Architecture({materials:m}:{materials:Materials}) {
       add(g,mat,p,r)
     }
     const cyl=(p:V3,r:number,h:number,mat:keyof Materials='darkwood',rot:V3=[0,0,0],top=r,segments=12)=>add(new T.CylinderGeometry(top,r,h,segments),mat,p,rot)
-    const stone=(p:V3,s:V3,mat:keyof Materials='stone',seed=0)=>{const g=new T.IcosahedronGeometry(1,2);const a=g.attributes.position;for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i),v=.9+.08*Math.sin(x*9+seed)*Math.cos(z*7-y*5);a.setXYZ(i,x*v,y*v,z*v)}g.computeVertexNormals();g.scale(...s);add(g,mat,p,[seed*.3,seed*.8,seed*.2])}
+    const stone=(p:V3,s:V3,mat:keyof Materials='stone',seed=0)=>{const g=new T.IcosahedronGeometry(1,2);const a=g.attributes.position;for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i),v=.9+.08*Math.sin(x*9+seed)*Math.cos(z*7-y*5);a.setXYZ(i,x*v,y*v,z*v)}const normals=g.attributes.normal;for(let i=0;i<a.count;i++){const v=new T.Vector3(a.getX(i),a.getY(i),a.getZ(i)).normalize();normals.setXYZ(i,v.x,v.y,v.z)}g.scale(...s);add(g,mat,p,[seed*.3,seed*.8,seed*.2])}
     const beam=(a:V3,b:V3,r:number,mat:keyof Materials='cedar')=>{const av=new T.Vector3(...a),bv=new T.Vector3(...b),d=bv.clone().sub(av);const g=new T.CylinderGeometry(r*.8,r,d.length(),8);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.normalize()));add(g,mat,av.add(bv).multiplyScalar(.5).toArray() as V3)}
     const shoji=(p:V3,w:number,h:number,angle=0)=>{
       const group=(x:number,y:number,z:number,s:V3,mat:keyof Materials)=>box([p[0]+x*Math.cos(angle)+z*Math.sin(angle),p[1]+y,p[2]-x*Math.sin(angle)+z*Math.cos(angle)],s,mat,[0,angle,0])

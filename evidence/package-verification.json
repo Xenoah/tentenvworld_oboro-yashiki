@@ -1,0 +1,12 @@
+{
+  "name": "朧の屋敷 — OBORO",
+  "files": 33,
+  "bytes": 5376428,
+  "sha256": "04b4e95f667f0017f5d79a6b9bffdf219af55196afecf4f9be0303c5dea16c63",
+  "maxCapacity": 4,
+  "permissions": {
+    "allowedDomains": [],
+    "relaxedRules": []
+  },
+  "verified": "official SDK unpackWorld: manifest, path, SHA-256 and static scan passed"
+}

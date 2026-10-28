@@ -137,6 +137,15 @@
      if (p.sitting) {
        const seatP = new Vector3()
        p.sitting.obj.updateWorldMatrix(true, false)
+@@ -290,7 +331,7 @@
+       const mv = phys.cc.computedMovement()
+       const next = p.position.clone().add(new Vector3(mv.x, mv.y, mv.z))
+       p.grounded = phys.cc.computedGrounded()
+-      if (!p.grounded && mv.y > desired.y + 0.001 && S.vy > 0) S.vy = 0 // 天井
++      if (!p.grounded && mv.y < desired.y - 0.001 && S.vy > 0) S.vy = 0 // 天井
+       phys.body.setNextKinematicTranslation(next)
+       // VR で壁に当たったら、部屋ごと押し戻す
+       if (xr) {
 @@ -329,6 +370,7 @@
            o.position.set(p.position.x - hw.x, playspaceOriginY(p.position.y, seatedLift, S.playspaceLift, liftTargetY), p.position.z - hw.z)
          }

@@ -1,0 +1,156 @@
+
+> oboro-ninja-yashiki@1.0.0 build:all
+> npm run build && npm run pack && npm run build:client
+
+
+> oboro-ninja-yashiki@1.0.0 build
+> npm run build -w @oboro/world
+
+
+> @oboro/world@1.0.0 build
+> ttv-world build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 5 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/world.js  46.38 kB │ gzip: 16.68 kB
+
+✓ built in 57ms
+ファイル 32 個・合計 4.0 MB
+コードの検査: 問題なし
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+
+> oboro-ninja-yashiki@1.0.0 pack
+> npm run pack -w @oboro/world
+
+
+> @oboro/world@1.0.0 pack
+> ttv-world pack --no-build -o ../../releases/oboro-yashiki.ttvw
+
+ファイル 32 個・合計 4.0 MB
+コードの検査: 問題なし
+作成しました: /workspace/ninja-yashiki/releases/oboro-yashiki.ttvw（3.9 MB）
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+
+> oboro-ninja-yashiki@1.0.0 build:client
+> npm run build -w @tentenv/client
+
+
+> @tentenv/client@0.1.0 build
+> tsc -p tsconfig.json --noEmit && vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 1170 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                0.87 kB │ gzip:     0.42 kB
+dist/assets/worker-_Lh8Vt-i.js                41.90 kB
+dist/assets/akane-thumbnail-BPaaQT8X.png     590.49 kB
+dist/assets/akane-C3qvCyfO.vrm            23,221.01 kB
+dist/assets/index-CP0Zuurf.css                19.40 kB │ gzip:     4.62 kB
+dist/assets/react-BSC1x4hs.js                  0.82 kB │ gzip:     0.42 kB
+dist/assets/rapier-TzGmBHeA.js                 2.02 kB │ gzip:     0.87 kB
+dist/assets/assetCache-DGHQvBHY.js             2.57 kB │ gzip:     1.31 kB
+dist/assets/AvatarsTab-sflDtjt7.js            24.80 kB │ gzip:     6.54 kB
+dist/assets/AvatarView-njcy6SWn.js            41.55 kB │ gzip:    13.69 kB
+dist/assets/join-A8AJPqYM.js                  72.49 kB │ gzip:    23.36 kB
+dist/assets/office_small-BOAzPg9h.js          99.65 kB │ gzip:    37.78 kB
+dist/assets/vision_bundle-BPlgBrMT.js        175.47 kB │ gzip:    44.97 kB
+dist/assets/meeting_room-BIxPriHL.js         412.54 kB │ gzip:   143.20 kB
+dist/assets/inter-CZ_kzz5x.js                491.27 kB │ gzip:   285.09 kB
+dist/assets/office_large-DjlkvBKJ.js         553.51 kB │ gzip:   200.74 kB
+dist/assets/index-D54XXdAc.js                661.57 kB │ gzip:   133.49 kB
+dist/assets/emulate-AbmnCm58.js              944.22 kB │ gzip:   209.80 kB
+dist/assets/hls-cgUaWW_j.js                1,155.41 kB │ gzip:   267.27 kB
+dist/assets/vrm-CoGBUHt-.js                1,304.34 kB │ gzip:   278.91 kB
+dist/assets/preload-helper--chvOQJ4.js     1,341.20 kB │ gzip:   266.73 kB
+dist/assets/living_room-McCogA9H.js        1,503.71 kB │ gzip:   517.52 kB
+dist/assets/music_room-bDlIshqN.js         2,089.85 kB │ gzip:   717.32 kB
+dist/assets/WorldSession-BWoAqKQs.js       5,156.32 kB │ gzip: 1,550.12 kB
+
+✓ built in 1.11s
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+
+> oboro-ninja-yashiki@1.0.0 build
+> npm run build -w @oboro/world
+
+
+> @oboro/world@1.0.0 build
+> ttv-world build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 5 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/world.js  46.38 kB │ gzip: 16.68 kB
+
+✓ built in 72ms
+ファイル 33 個・合計 5.3 MB
+コードの検査: 問題なし
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+
+> oboro-ninja-yashiki@1.0.0 pack
+> npm run pack -w @oboro/world
+
+
+> @oboro/world@1.0.0 pack
+> ttv-world pack --no-build -o ../../releases/oboro-yashiki.ttvw
+
+ファイル 33 個・合計 5.3 MB
+コードの検査: 問題なし
+作成しました: /workspace/ninja-yashiki/releases/oboro-yashiki.ttvw（5.1 MB）
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

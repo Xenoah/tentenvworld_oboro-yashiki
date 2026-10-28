@@ -1,0 +1,102 @@
+{
+  "testedAt": "2026-10-28T04:17:08.687Z",
+  "transport": "official LocalTransport / BroadcastChannel; four real tabs, same browser context",
+  "vrHardwareTested": false,
+  "results": [
+    {
+      "name": "desktop start through visible UI"
+    },
+    {
+      "name": "keyboard locomotion on collidable ground",
+      "before": [
+        2.9999906915101633,
+        -0.01000638848199742,
+        7.999993712415517
+      ],
+      "after": [
+        3.000243842404757,
+        -0.009430711586901452,
+        7.251809981425822
+      ]
+    },
+    {
+      "name": "ordered runes open physical rotating door"
+    },
+    {
+      "name": "late join receives door, key, difficulty, run and clock"
+    },
+    {
+      "name": "four real Chromium tabs discover one another",
+      "count": 4
+    },
+    {
+      "name": "four-client software-renderer sample",
+      "fps": 0,
+      "calls": 111,
+      "triangles": 320970,
+      "textures": 96,
+      "memoryMB": 219,
+      "quality": "low, renderScale 0.5, SwiftShader"
+    },
+    {
+      "name": "simultaneous key pickup once; one shared score"
+    },
+    {
+      "name": "distant pickup rejected"
+    },
+    {
+      "name": "host disconnect migrates authority and keeps progress"
+    },
+    {
+      "name": "close extra renderers for traversal tests on software GPU"
+    },
+    {
+      "name": "water buoyancy and ascent input",
+      "pose": [
+        -14,
+        -2.1746005944907667,
+        -17
+      ]
+    },
+    {
+      "name": "zero gravity holds altitude and ordered stars unlock key",
+      "floatA": [
+        0,
+        4.6,
+        -19
+      ],
+      "floatB": [
+        0,
+        4.6,
+        -19
+      ]
+    },
+    {
+      "name": "wall walking, ceiling transition and fifth key",
+      "wall": [
+        9.850000003352761,
+        2.100000023841858,
+        -18
+      ],
+      "ceiling": [
+        14,
+        5.78,
+        -19
+      ]
+    },
+    {
+      "name": "cooperative escape synchronizes terminal state",
+      "score": 16989
+    },
+    {
+      "name": "restart clears keys, puzzles, time and locomotion"
+    },
+    {
+      "name": "disconnect/rejoin receives current round"
+    },
+    {
+      "name": "deadline loss propagates; all clients return to safe start"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,22 @@
+{
+  "testedAt": "2026-10-28T04:23:07.697Z",
+  "runtime": "official client with real movement extension; stock-capability fixture removes optional API",
+  "results": [
+    {
+      "name": "native jump pad and forward input land on elevated balcony",
+      "observedHeight": 4.045470726117491,
+      "landing": [
+        16,
+        3.4200998716056343,
+        3.4731698803603646
+      ]
+    },
+    {
+      "name": "ninja warning precedes non-gory capture loss"
+    },
+    {
+      "name": "stock-capability fallback can collect five seals and escape"
+    }
+  ],
+  "errors": []
+}
