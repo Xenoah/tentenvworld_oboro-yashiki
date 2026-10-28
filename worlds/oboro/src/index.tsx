@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { Clickable, SpawnPad, SpatialSound, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
 import * as T from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { Architecture, useMaterials, type Materials } from './Architecture'
 import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, command, distance, initialState, tick, type Command, type GameState, type V3 } from './game'
 
@@ -55,7 +56,7 @@ function Oboro(){
   return <>
     <color attach="background" args={['#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
     <hemisphereLight args={['#b4cbd6','#4e3c28',1.35]}/>
-    <directionalLight position={[-12,22,10]} color="#c7daec" intensity={2.1} castShadow shadow-mapSize={[2048,2048]} shadow-camera-left={-27} shadow-camera-right={27} shadow-camera-top={30} shadow-camera-bottom={-28} shadow-camera-far={70} shadow-bias={-.0004} shadow-normalBias={.03}/>
+    <directionalLight position={[-12,22,10]} color="#c7daec" intensity={2.1} castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-27} shadow-camera-right={27} shadow-camera-top={30} shadow-camera-bottom={-28} shadow-camera-far={70} shadow-bias={-.0004} shadow-normalBias={.03}/>
     <pointLight position={[0,3,11]} color="#ffc37a" intensity={20} distance={14} decay={2}/>
     <pointLight position={[-13,2,0]} color="#ffbf75" intensity={14} distance={10} decay={2}/>
     <pointLight position={[0,5,-20]} color="#889bff" intensity={16} distance={10} decay={2}/>
@@ -206,7 +207,13 @@ function Ninja({enemy:e,m,active}:{enemy:GameState['enemies'][number];m:Material
     {e.mode!=='patrol'&&<><TextPlane text={e.mode==='warning'?'危険！ 距離を取れ':'気配を察知'} width={1.8} lineHeight={.19} position={[0,2.2,0]} color="#ffab79"/><mesh rotation={[-Math.PI/2,0,0]} position={[0,.04,0]}><ringGeometry args={[1.3,1.45,40]}/><meshBasicMaterial color="#ec9868" transparent opacity={.65} side={T.DoubleSide}/></mesh></>}
   </group>
 }
-function Water(){const ref=useRef<T.Mesh>(null);useFrame(({clock})=>{if(ref.current)ref.current.position.y=.08+Math.sin(clock.elapsedTime*.6)*.025});return <group><mesh ref={ref} position={[-14,.1,-18]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[8,8]}/><meshPhysicalMaterial color="#2c7372" transparent opacity={.48} roughness={.18} metalness={.25} side={T.DoubleSide}/></mesh>{Array.from({length:8},(_,i)=><mesh key={i} position={[-14,.14,-18]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[.45+i*.46,.465+i*.46,48]}/><meshBasicMaterial color="#b5d7c1" transparent opacity={.10} side={T.DoubleSide}/></mesh>)}</group>}
+function Water(){
+  const ref=useRef<T.Mesh>(null)
+  const ripples=useMemo(()=>{const rings=Array.from({length:8},(_,i)=>new T.RingGeometry(.45+i*.46,.465+i*.46,32));const merged=mergeGeometries(rings);rings.forEach(g=>g.dispose());return merged},[])
+  useEffect(()=>()=>ripples.dispose(),[ripples])
+  useFrame(({clock})=>{if(ref.current)ref.current.position.y=.08+Math.sin(clock.elapsedTime*.6)*.025})
+  return <group><mesh ref={ref} position={[-14,.1,-18]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[8,8]}/><meshStandardMaterial color="#2c7372" transparent opacity={.48} roughness={.18} metalness={.25} side={T.DoubleSide}/></mesh><mesh geometry={ripples} position={[-14,.14,-18]} rotation={[-Math.PI/2,0,0]}><meshBasicMaterial color="#b5d7c1" transparent opacity={.10} depthWrite={false} side={T.DoubleSide}/></mesh></group>
+}
 function Moon(){return <group><mesh position={[-18,32,-48]}><sphereGeometry args={[2.5,24,16]}/><meshBasicMaterial color="#e9e5ce"/></mesh><mesh position={[-18,32,-48]}><sphereGeometry args={[3.3,24,16]}/><meshBasicMaterial color="#b8d5dc" transparent opacity={.06} depthWrite={false}/></mesh></group>}
 function Dust(){const ref=useRef<T.Points>(null),positions=useMemo(()=>{const a=new Float32Array(180*3);for(let i=0;i<180;i++){a[i*3]=Math.sin(i*237.1)*20;a[i*3+1]=.4+(i%34)*.16;a[i*3+2]=Math.cos(i*87.2)*19-3}return a},[]);useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=clock.elapsedTime*.003});return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]}/></bufferGeometry><pointsMaterial size={.025} color="#edcf8c" transparent opacity={.45} depthWrite={false}/></points>}
 

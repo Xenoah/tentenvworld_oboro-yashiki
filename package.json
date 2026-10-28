@@ -10,6 +10,9 @@
     "worlds/*"
   ],
   "scripts": {
+    "build:pages": "node scripts/build-pages.mjs",
+    "preview:pages": "node scripts/serve-pages.mjs",
+    "test:pages": "node tests/pages.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:client": "npm run dev -w @tentenv/client",
     "dev:world": "npm run dev -w @oboro/world",

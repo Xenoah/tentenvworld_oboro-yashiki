@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  base: process.env.OBORO_BASE_PATH || '/',
   plugins: [react()],
   server: { port: 5190, strictPort: true, host: true },
   build: {

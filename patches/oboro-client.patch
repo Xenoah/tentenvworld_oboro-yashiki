@@ -230,3 +230,67 @@
 +  if(destination && !destination.every((v,i)=>v>=p.min[i]-.15&&v<=p.max[i]+.15))return null
 +  return p
 +}
+--- a/apps/client/vite.config.ts
++++ b/apps/client/vite.config.ts
+@@ -2,6 +2,7 @@
+ import { defineConfig } from 'vite'
+ 
+ export default defineConfig({
++  base: process.env.OBORO_BASE_PATH || '/',
+   plugins: [react()],
+   server: { port: 5190, strictPort: true, host: true },
+   build: {
+--- a/apps/client/src/main.tsx
++++ b/apps/client/src/main.tsx
+@@ -1,5 +1,19 @@
+ import { createRoot } from 'react-dom/client'
+ import { App } from './App'
+ import './ui/styles.css'
++import { useApp } from './state/app'
++import { useSettings } from './state/settings'
++import { useTools } from './features/tools'
++
++// A build-time entry for the self-contained Pages demo; the official runtime stays intact.
++if (import.meta.env.VITE_OBORO_DEMO === '1') {
++  const base = new URL(import.meta.env.BASE_URL, location.origin)
++  useApp.getState().setScreen({ kind: 'dev', worldUrl: new URL('../world/', base).href })
++  useTools.setState({ faceMirror: false })
++  try {
++    if (!localStorage.getItem('ttv.settings.v1')) useSettings.getState().set({ quality: 'medium', renderScale: 1, shadows: true })
++  } catch { /* Storage may be unavailable; current in-memory defaults still work. */ }
++  useSettings.getState().set({ autoEnterVR: false, startMuted: true })
++}
+ 
+ createRoot(document.getElementById('root')!).render(<App />)
+--- a/apps/client/src/ui/Brand.tsx
++++ b/apps/client/src/ui/Brand.tsx
+@@ -1,8 +1,8 @@
+ import type { ServerInfo } from '@tentenv/protocol'
+ import { useState } from 'react'
+ 
+-const DEFAULT_NAME = 'TenTenV'
+-const DEFAULT_LOGO = '/icon.svg'
++const DEFAULT_NAME = import.meta.env.VITE_OBORO_DEMO === '1' ? '朧の屋敷 — OBORO' : 'TenTenV'
++const DEFAULT_LOGO = `${import.meta.env.BASE_URL}icon.svg`
+ 
+ export const brandingOf = (info: ServerInfo | null, server: string | null) => {
+   const name = info?.branding?.siteName?.trim() || DEFAULT_NAME
+--- a/apps/client/src/world/WorldSession.tsx
++++ b/apps/client/src/world/WorldSession.tsx
+@@ -23,6 +23,7 @@
+ import { useTools } from '../features/tools'
+ import { useAvatarExt } from '../state/avatarExt'
+ import { VoiceRelay } from '../net/voiceRelay'
++import { perfStats } from '../features/perf'
+ 
+ type Joined = Extract<ServerSignal, { t: 'joined' }>
+ 
+@@ -177,7 +178,7 @@
+       engineRef.current = engine
+       setActiveEngine(engine)
+       // 開発時だけ: 自動テストから中の状態を見られるようにする
+-      if (import.meta.env.DEV) Object.assign(window, { __ttvEngine: engine, __ttvPortalPlacement: usePortalPlacement, __ttvPendingTap: pendingTap })
++      if (import.meta.env.DEV || (import.meta.env.VITE_OBORO_DEMO === '1' && new URLSearchParams(location.search).has('debug'))) Object.assign(window, { __ttvEngine: engine, __ttvPerf: perfStats, __ttvPortalPlacement: usePortalPlacement, __ttvPendingTap: pendingTap })
+       // ほかのワールド・インスタンスへ移る（ポータル）
+       engine.navigate = (target) => {
+         if (target.instanceId) joinInstance(target.instanceId)

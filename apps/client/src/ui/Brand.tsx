@@ -1,8 +1,8 @@
 import type { ServerInfo } from '@tentenv/protocol'
 import { useState } from 'react'
 
-const DEFAULT_NAME = 'TenTenV'
-const DEFAULT_LOGO = '/icon.svg'
+const DEFAULT_NAME = import.meta.env.VITE_OBORO_DEMO === '1' ? '朧の屋敷 — OBORO' : 'TenTenV'
+const DEFAULT_LOGO = `${import.meta.env.BASE_URL}icon.svg`
 
 export const brandingOf = (info: ServerInfo | null, server: string | null) => {
   const name = info?.branding?.siteName?.trim() || DEFAULT_NAME

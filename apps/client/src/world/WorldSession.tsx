@@ -23,6 +23,7 @@ import { startOscFace } from '../features/oscFace'
 import { useTools } from '../features/tools'
 import { useAvatarExt } from '../state/avatarExt'
 import { VoiceRelay } from '../net/voiceRelay'
+import { perfStats } from '../features/perf'
 
 type Joined = Extract<ServerSignal, { t: 'joined' }>
 
@@ -177,7 +178,7 @@ export const WorldSession: React.FC<{ instanceId?: string; devUrl?: string }> = 
       engineRef.current = engine
       setActiveEngine(engine)
       // 開発時だけ: 自動テストから中の状態を見られるようにする
-      if (import.meta.env.DEV) Object.assign(window, { __ttvEngine: engine, __ttvPortalPlacement: usePortalPlacement, __ttvPendingTap: pendingTap })
+      if (import.meta.env.DEV || (import.meta.env.VITE_OBORO_DEMO === '1' && new URLSearchParams(location.search).has('debug'))) Object.assign(window, { __ttvEngine: engine, __ttvPerf: perfStats, __ttvPortalPlacement: usePortalPlacement, __ttvPendingTap: pendingTap })
       // ほかのワールド・インスタンスへ移る（ポータル）
       engine.navigate = (target) => {
         if (target.instanceId) joinInstance(target.instanceId)
