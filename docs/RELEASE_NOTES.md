@@ -12,13 +12,15 @@
 
 詳しい数値と互換性は `docs/COMBAT.md`、固定TenTenV commitへの適用は `docs/CLIENT_EXTENSION.md`。
 
+ホスト交代と同時に敗北などの一度だけの更新が届いた場合、別タブが旧状態に残る競合も修正。切替後に新ホストへsnapshotを再要求し、送信者確認を維持したまま確定状態へ揃えます。順序を固定した再現テストを追加しました。
+
 ## 配布物
 
 `oboro-v1.4.0-source.zip`、`oboro-yashiki-v1.4.0.ttvw`、`oboro-v1.4.0-pages.zip`、実プレイ画像3枚（wood-sword / stamina-recovery / shared-health）、`SCREENSHOTS.json`、`RELEASE_BUILD.json`、`SHA256SUMS`、この説明、AGPLと第三者ライセンスです。画像は同じ最終コミットの本番ビルドを実Chromiumで動かして撮影。撮影用の位置・敵配置fixtureはmetadataへ記録します。
 
 ## 検証と制限
 
-35単体テスト、型検査、既存ベイクの形状・ハッシュ一致、Pagesビルドを検査。ブラウザ試験は実際のJ／ボタン・Shift移動、共有ダメージ、HP0捕縛、仲間救出、途中参加・ホスト交代・再開始、既存五印・移動・同期回帰を含みます。敵位置・保護時間・試験区画間のteleport fixtureを使いますが、命中・HP減少・気力枯渇・捕縛・救出・勝利の成功結果は注入しません。
+36単体テスト、型検査、既存ベイクの形状・ハッシュ一致、Pagesビルドを検査。ブラウザ試験は実際のJ／ボタン・Shift移動、共有ダメージ、HP0捕縛、仲間救出、途中参加・ホスト交代・再開始、既存五印・移動・同期回帰を含みます。敵位置・保護時間・試験区画間のteleport fixtureを使いますが、命中・HP減少・気力枯渇・捕縛・救出・勝利の成功結果は注入しません。
 
 標準TenTenVへ`.ttvw`だけをimportした場合、局所移動は互換足場、息切れ時のダッシュ速度制限は非対応です。同梱の拡張済み公式クライアントで揃います。SDK 0.1.1 / protocol 0.1.0 / upstream `97e9bc120f4f977e0a3cfdb79379391e236f25e2`。
 

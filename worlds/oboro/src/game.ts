@@ -112,7 +112,7 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
     s.held ??= {}; s.clouds ??= []
     if (!(s.held[player.id] > 0)) return state
     s.held[player.id]--; s.clouds = [...s.clouds.filter(c => now - c.at < 8000), { pos: [...player.pos] as V3, at: now, by: player.id }].slice(-4)
-    for (const e of s.enemies) if (distance(e.pos, player.pos) < SMOKE_RADIUS) { e.stunUntil = now + SMOKE_STUN; e.target = null; e.alertAt = 0; e.mode = 'stunned' }
+    for (const e of s.enemies) if (distance(e.pos, player.pos) < SMOKE_RADIUS) { e.stunUntil = Math.max(e.stunUntil ?? 0, now + SMOKE_STUN); e.target = null; e.alertAt = 0; e.mode = 'stunned' }
     s.serial++; return s
   } else if (cmd.kind === 'brace') {
     const m=s.motion[player.id]
