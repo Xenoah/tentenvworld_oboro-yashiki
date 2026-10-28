@@ -17,6 +17,8 @@ try{
   else await p.getByTestId('start').click()
   await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.get('w:oboro:game')?.phase==='running')
   if(mobile){
+   const combat=await p.getByTestId('combat').boundingBox(),movement=await p.locator('.oboro-movement').boundingBox();assert.ok(combat.x>=0&&combat.x+combat.width<=390);assert.ok(combat.y+combat.height<=movement.y||movement.y+movement.height<=combat.y,'combat and landing HUD must not overlap');
+   await p.waitForFunction(()=>{const r=window.__ttvEngine.runtime;return r.clock().now()>r.state.get('w:oboro:game').startedAt});await p.getByTestId('attack').tap();await p.waitForFunction(()=>{const r=window.__ttvEngine.runtime;return r.state.get('w:oboro:game').vitals[r.self().peerId].attackSeq>0});
    const b=await p.locator('.touch-stick').boundingBox();const before=await p.evaluate(()=>window.__ttvEngine.player.position.z)
    await p.mouse.move(b.x+b.width/2,b.y+b.height/2);await p.mouse.down();await p.mouse.move(b.x+b.width/2,b.y+8)
    await p.waitForFunction(z=>window.__ttvEngine.player.position.z<z-.5,before,{timeout:20000});await p.mouse.up()

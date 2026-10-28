@@ -66,7 +66,7 @@ export function Combat({ state:s, sound, materials:m }: { state:GameState; sound
     {device==='vr'&&running&&<group ref={visor}><TextPlane text={`HP ${v.hp} / 気力 ${Math.round(v.stamina)}\n右グリップ＋トリガー：木刀`} width={.8} lineHeight={.07} color="#eedbb9"/></group>}
     {device!=='vr'&&<Html fullscreen calculatePosition={(_o,_c,size)=>[size.width/2,size.height/2]} style={{pointerEvents:'none'}}>
       <div ref={pulse} data-testid="damage-pulse" style={{position:'absolute',inset:0,pointerEvents:'none',opacity:0,background:'radial-gradient(ellipse,transparent 45%,#c33b25 100%)'}}/>
-      <style>{`@media(max-width:680px){.oboro-combat{left:10px!important;bottom:210px!important;width:175px!important;font-size:10px!important}}`}</style>
+      <style>{`body:has(.oboro-help) .oboro-combat{display:none}@media(max-width:680px){.oboro-combat{left:12px!important;top:182px!important;bottom:auto!important;width:160px!important;padding:8px!important;font-size:10px!important}}@media(max-width:680px) and (max-height:740px){.oboro-combat{top:170px!important;transform:scale(.82);transform-origin:top left}.oboro-movement{bottom:200px!important;width:160px!important}}`}</style>
       {running&&<div className="oboro-combat" data-testid="combat" style={{position:'absolute',left:24,bottom:80,width:224,padding:'12px 14px',border:'1px solid #a0885366',borderRadius:5,background:'linear-gradient(120deg,#14282ae8,#20332ed4)',color:'#eee0c1',fontFamily:'Georgia,"Yu Mincho",serif',fontSize:12,pointerEvents:'auto'}}>
         <div style={{display:'flex',justifyContent:'space-between'}}><b>体力 HP</b><span data-testid="hp">{v.hp} / 100</span></div>
         <meter aria-label="HP" min={0} max={100} value={v.hp} style={{width:'100%',height:10,accentColor:'#ce876d'}}/>
