@@ -30,8 +30,9 @@ try{
  await wait(()=>{const e=window.__ttvEngine,m=e.runtime.state.get('w:oboro:game').motion[e.runtime.self().peerId];return m?.descending&&!m.grounded&&m.pos[1]<=.75&&m.pos[1]>.05&&!e.player.grounded})
  await p.keyboard.press('KeyX');record('quiet input diagnostics',await p.evaluate(()=>({input:window.__quietInput,now:window.__ttvEngine.runtime.clock().now(),motion:window.__ttvEngine.runtime.state.get('w:oboro:game').motion[window.__ttvEngine.runtime.self().peerId]})))
  await wait(()=>{const e=window.__ttvEngine,m=e.runtime.state.get('w:oboro:game').motion[e.runtime.self().peerId];return !!m?.lastLanding?.quiet})
+ let data=await snap();assert.ok(data.state.disturbances.some(n=>n.id>prior&&n.kind==='landing'&&n.quiet&&n.radius===0));record('real jump and timed X produce quiet landing with zero hearing radius')
  await p.getByTestId('landing-feedback').filter({hasText:'静音着地 成功'}).waitFor({timeout:10000})
- await shot('movement-quiet.png','quiet-landing');let data=await snap();assert.ok(data.state.disturbances.some(n=>n.id>prior&&n.kind==='landing'&&n.quiet&&n.radius===0));record('real jump and timed X produce quiet landing with zero hearing radius')
+ await shot('movement-quiet.png','quiet-landing')
  // No client-supplied sound power. Place enemy behind the actual courtyard rock to isolate hearing from sight.
  await tp([-4,.1,0]);await wait(()=>window.__ttvEngine.player.grounded)
  await p.evaluate(()=>{const e=window.__ttvEngine,rt=e.runtime,s=structuredClone(rt.state.get('w:oboro:game'));s.startedAt=rt.clock().now()-20000;s.protectedUntil[rt.self().peerId]=0;s.enemies[0]={pos:[1.5,0,0],target:null,alertAt:0,waypoint:0,mode:'patrol'};s.enemies[1].pos=[7,0,-10];s.disturbances=[];rt.state.set('w:oboro:game',s)})
