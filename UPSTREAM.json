@@ -24,7 +24,8 @@
     "apps/client/vite.config.ts",
     "apps/client/src/main.tsx",
     "apps/client/src/ui/Brand.tsx",
-    "apps/client/src/world/WorldSession.tsx"
+    "apps/client/src/world/WorldSession.tsx",
+    "apps/client/src/ui/hud/Hud.tsx"
   ],
   "noUpstreamPushOrPR": true
 }

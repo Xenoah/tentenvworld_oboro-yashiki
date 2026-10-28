@@ -17,4 +17,4 @@ try{
  assert.equal(errors.length,0,errors.join('\n'))
  writeFileSync(`${output}/smoke-results.json`,JSON.stringify({url:base,landingToPlay:true,reload:true,errors},null,2))
 }finally{await browser.close()}
-for(const script of ['tests/e2e.mjs','tests/traversal.mjs'])execFileSync(process.execPath,[script],{stdio:'inherit',env:{...process.env,OBORO_TEST_URL:new URL('play/?debug=1',base).href,OBORO_EVIDENCE_DIR:output}})
+for(const script of ['tests/e2e.mjs','tests/traversal.mjs','tests/pages-visual.mjs'])execFileSync(process.execPath,[script],{stdio:'inherit',env:{...process.env,OBORO_TEST_URL:new URL('play/?debug=1',base).href,OBORO_EVIDENCE_DIR:output}})

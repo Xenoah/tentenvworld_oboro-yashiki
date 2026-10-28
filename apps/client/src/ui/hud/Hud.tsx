@@ -81,8 +81,8 @@ export const Hud: React.FC<{ engine: WorldEngine; onLeave: () => void; worldErro
         <div className="pill">
           <b>{engine.ctx.world.name}</b>
           <span className="muted row" style={{ gap: 4 }}><Icon name="users" size={15} /> {count}</span>
-          {!server && <span title={L('親サーバーと切れています。P2P でつながっている人とは続けられます', 'Server connection lost; P2P peers still connected')} style={{ color: '#fbbf24', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Icon name="warning" size={15} /> {L('サーバー切断', 'Server offline')}</span>}
-          {engine.ctx.dev && <span style={{ color: 'var(--accent)' }}>DEV</span>}
+          {!server && !engine.ctx.dev && <span title={L('親サーバーと切れています。P2P でつながっている人とは続けられます', 'Server connection lost; P2P peers still connected')} style={{ color: '#fbbf24', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Icon name="warning" size={15} /> {L('サーバー切断', 'Server offline')}</span>}
+          {engine.ctx.dev && <span style={{ color: 'var(--accent)' }}>{import.meta.env.VITE_OBORO_DEMO === '1' ? L('同じブラウザのタブで協力', 'Same-browser co-op') : 'DEV'}</span>}
         </div>
         <div className="grow" />
         {vrOk && (
