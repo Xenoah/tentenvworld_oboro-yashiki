@@ -2,7 +2,7 @@
   "name": "oboro-ninja-yashiki",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "type": "module",
   "workspaces": [
     "packages/*",

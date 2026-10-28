@@ -8,7 +8,7 @@ import { DIFFICULTIES, SMOKE_SPOTS, type Difficulty, type GameState, type V3 } f
 import { Touch } from './Pads'
 
 const CONE = { patrol: ['#ffcf3f', .2], investigate: ['#ff9d2e', .24], search: ['#ff9d2e', .24], chase: ['#ff4b3a', .3], warning: ['#ff2a1a', .36], stunned: ['#9aa', 0] } as const
-const LABEL: Record<string, string> = { warning: '危険！ 距離を取れ', investigate: '足音を追っている', search: '周囲を捜索中', chase: '見つかった！', stunned: '煙に巻かれた' }
+const LABEL: Record<string, string> = { warning: '危険！ 距離を取れ', investigate: '足音を追っている', search: '周囲を捜索中', chase: '見つかった！', stunned: 'ひるんでいる' }
 
 /** Ninja body plus its ground-projected view cone (same fov/sight as the host's detection). */
 export function Ninja({ enemy: e, m, active, difficulty }: { enemy: GameState['enemies'][number]; m: Materials; active: boolean; difficulty: Difficulty }) {

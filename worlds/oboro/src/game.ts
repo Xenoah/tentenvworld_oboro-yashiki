@@ -1,3 +1,4 @@
+import { ensureCombat, freshVital, observeVitals, restoreVital, strike, COMBAT, NINJA_DAMAGE, type Vital, type Strike } from './combat'
 import { observeMotion, quietWindow, type MotionTrack, type Disturbance } from './movement'
 import { layoutFor, VALVE_SPOTS, type Layout } from './layout'
 /** Host-only, deterministic game rules. All coordinates are metres; timestamps are network ms. */
@@ -31,12 +32,13 @@ export const ACTIONS: Record<string, V3> = {
   'star:0': [-2, 1.3, -18], 'star:1': [2, 3.3, -21], 'star:2': [-2, 5.1, -22],
   exit: [0, 1.2, 17],
 }
-export interface Player { id: string; pos: V3; joinedAt?: number; grounded?: boolean; speed?: number }
+export interface Player { id: string; pos: V3; joinedAt?: number; grounded?: boolean; speed?: number; yaw?: number }
 /** Smoke bombs lying in the courtyard; touching one picks it up, B (or the HUD button) throws it. */
 export const SMOKE_SPOTS: V3[] = [[-7.6, 0, -9.6], [8.2, 0, 1], [-7.4, 0, 6.6]]
 export const SMOKE_RADIUS = 6, SMOKE_STUN = 3000, CLOSE_SENSE = 1.8
-export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search' | 'stunned'; heardId?:number; searchUntil?:number; investigate?:V3; reverse?:boolean; yaw?:number; stunUntil?:number }
+export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search' | 'stunned'; heardId?:number; searchUntil?:number; investigate?:V3; reverse?:boolean; yaw?:number; stunUntil?:number; guard?:number; hitAt?:number }
 export interface GameState {
+  vitals: Record<string,Vital>; strikes: Strike[]; combatSerial: number;
   version: 1; run: number; phase: 'lobby' | 'running' | 'won' | 'lost'; difficulty: Difficulty;
   startedAt: number; updatedAt: number; endedAt: number; keys: string[]; rune: number; door: boolean;
   valves: number[]; stars: number[]; recoveries: number; score: number; reason: string;
@@ -50,8 +52,9 @@ export interface GameState {
   /** Remaining smoke bombs on the ground, bombs held per player, recent clouds for every client's effect. */
   smokeLeft: boolean[]; held: Record<string, number>; clouds: { pos: V3; at: number; by: string }[];
 }
-export type Command = { run: number; kind: string; value?: string }
+export type Command = { run: number; kind: string; value?: string; seq?: number }
 export const initialState = (run = 0, difficulty: Difficulty = 'normal', mode: Mode = 'standard'): GameState => ({
+  vitals: {}, strikes: [], combatSerial: 0,
   version: 1, run, phase: 'lobby', difficulty, startedAt: 0, updatedAt: 0, endedAt: 0, keys: [], rune: 0, door: false,
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
     { pos: [-5, 0, -8], target: null, alertAt: 0, waypoint: 1, mode: 'patrol' },
@@ -85,20 +88,23 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if (pos && distance(pos, player.pos) > (['start','restart','difficulty','mode'].includes(cmd.kind)?6.4:3.4)) return state
   const smokeSpot = cmd.kind.startsWith('smoke:take:') ? SMOKE_SPOTS[Number(cmd.kind.slice(11))] : undefined
   if (smokeSpot && distance(smokeSpot, player.pos) > 2.6) return state
-  if (!pos && !smokeSpot && !['recover', 'brace', 'smoke:use'].includes(cmd.kind)) return state
-  const s: GameState = structuredClone(state);s.motion??={};s.disturbances??=[];s.noiseSerial??=0
+  if (!pos && !smokeSpot && !['recover', 'brace', 'smoke:use', 'attack'].includes(cmd.kind)) return state
+  const s: GameState = structuredClone(state);ensureCombat(s);s.motion??={};s.disturbances??=[];s.noiseSerial??=0
   if (cmd.kind === 'difficulty' && host && s.phase !== 'running' && cmd.value && cmd.value in DIFFICULTIES) { s.difficulty = cmd.value as Difficulty; return s }
   if (cmd.kind === 'mode' && host && s.phase !== 'running' && cmd.value && cmd.value in MODES) { s.mode = cmd.value as Mode; return s }
   if ((cmd.kind === 'start' && s.phase === 'lobby') || (cmd.kind === 'restart' && (s.phase === 'lost' || s.phase === 'won'))) {
     if (!host) return state
     const next = initialState(s.run + 1, s.difficulty, s.mode ?? 'standard')
     next.seed = (Math.floor(now) ^ (s.run + 1) * 2654435761) >>> 0 || 1
-    next.phase = 'running'; next.startedAt = now + COUNTDOWN; next.updatedAt = now; next.roster = [player.id]; next.protectedUntil[player.id] = now + COUNTDOWN + 12000
+    next.vitals[player.id] = freshVital(); next.phase = 'running'; next.startedAt = now + COUNTDOWN; next.updatedAt = now; next.roster = [player.id]; next.protectedUntil[player.id] = now + COUNTDOWN + 12000
     return next
   }
   if (s.phase !== 'running' || now < s.startedAt) return state
   if (!s.roster.includes(player.id) || s.jailed?.[player.id]) return state
-  if (smokeSpot) {
+  if (cmd.kind === 'attack') {
+    if (!strike(s,player,cmd.seq,now,lineOfSight)) return state
+    s.serial++; return s
+  } else if (smokeSpot) {
     const i = Number(cmd.kind.slice(11)); s.smokeLeft ??= SMOKE_SPOTS.map(() => true); s.held ??= {}
     if (!s.smokeLeft[i]) return state
     s.smokeLeft[i] = false; s.held[player.id] = (s.held[player.id] ?? 0) + 1; s.serial++; return s
@@ -138,7 +144,7 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
     s.coins.push(i); s.coinPoints = (s.coinPoints ?? 0) + coin.value
   } else if (cmd.kind === 'free') {
     s.jailed ??= {}; if (!Object.keys(s.jailed).length) return state
-    for (const id of Object.keys(s.jailed)) { delete s.jailed[id]; s.protectedUntil[id] = now + 6000 }
+    for (const id of Object.keys(s.jailed)) { delete s.jailed[id]; restoreVital(s,id); s.protectedUntil[id] = now + 6000 }
   } else if (cmd.kind === 'exit' && ready(s)) return finish(s, 'won', now, s.mode === 'sprint' ? '三つの印で朧の門が開いた。疾風のごとく。' : '五つの印が結ばれ、朧の門が開いた。')
   else return state
   s.score = scoreFor(s, now); s.serial++; return s
@@ -162,7 +168,7 @@ const nextWaypoint=(e:Enemy)=>(e.waypoint+(e.reverse?ROUTE.length-1:1))%ROUTE.le
 export function tick(state: GameState, players: Player[], now: number): GameState {
   if (state.phase !== 'running') return state
   const s: GameState = structuredClone(state), cfg = DIFFICULTIES[s.difficulty]
-  s.motion??={};s.disturbances??=[];s.noiseSerial??=0
+  ensureCombat(s);s.motion??={};s.disturbances??=[];s.noiseSerial??=0
   const dt = Math.max(0, Math.min(.35, (now - s.updatedAt) / 1000)); s.updatedAt = now
   const present = players.slice(0,4)
   s.roster = present.map(p => p.id)
@@ -171,16 +177,19 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
   for (const id of Object.keys(s.protectedUntil)) if (!s.roster.includes(id)) delete s.protectedUntil[id]
   for(const id of Object.keys(s.motion))if(!s.roster.includes(id))delete s.motion[id]
   s.held??={};for(const id of Object.keys(s.held))if(!s.roster.includes(id))delete s.held[id]
+  for(const id of Object.keys(s.vitals))if(!s.roster.includes(id))delete s.vitals[id]
+  s.strikes=s.strikes.filter(e=>now-e.at<1500)
   s.clouds=(s.clouds??[]).filter(c=>now-c.at<8000)
   s.disturbances=s.disturbances.filter(e=>now-e.at<6500)
-  for(const p of present){const observed=observeMotion(s.motion[p.id],p,now);s.motion[p.id]=observed.motion;for(const e of observed.events)s.disturbances.push({...e,by:p.id,id:++s.noiseSerial})}
+  for(const p of present){observeVitals(s,p,dt,now);const observed=observeMotion(s.motion[p.id],p,now);s.motion[p.id]=observed.motion;for(const e of observed.events)s.disturbances.push({...e,by:p.id,id:++s.noiseSerial})}
   s.disturbances=s.disturbances.slice(-16)
   if (now >= s.startedAt && remaining(s, now) <= 0) return finish(s, 'lost', now, '夜明けの鐘。任務時間が尽きた。')
   s.jailed ??= {}
-  for (const [id, until] of Object.entries(s.jailed)) if (now >= until || !s.roster.includes(id)) { delete s.jailed[id]; if (s.roster.includes(id)) s.protectedUntil[id] = now + 6000 }
+  for (const [id, until] of Object.entries(s.jailed)) if (now >= until || !s.roster.includes(id)) { delete s.jailed[id]; if (s.roster.includes(id)) { restoreVital(s,id); s.protectedUntil[id] = now + 6000 } }
   if (now - s.startedAt < 15000) return s
   s.enemies.forEach(enemy => {
     if (now < (enemy.stunUntil ?? 0)) { enemy.mode = 'stunned'; enemy.target = null; enemy.alertAt = 0; return }
+    if (enemy.guard === 0) enemy.guard = 100
     const candidates = present.filter(p => !s.jailed[p.id] && !safe(p.pos) && now > (s.protectedUntil[p.id] ?? 0) && distance(p.pos, enemy.pos) < cfg.sight && lineOfSight(enemy.pos, p.pos) && (enemy.target === p.id || inView(enemy, p.pos, cfg.fov))).sort((a,b)=>distance(a.pos,enemy.pos)-distance(b.pos,enemy.pos))
     const target = candidates[0]
     if (target) {
@@ -190,7 +199,7 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
       if (d < 1.5) {
         if (enemy.mode !== 'warning') enemy.alertAt = now
         enemy.mode = 'warning'
-        if (now - enemy.alertAt > cfg.windup * 1000 && s.phase === 'running') capture(s, enemy, target.id, now)
+        if (now - enemy.alertAt > cfg.windup * 1000 && s.phase === 'running') hit(s, enemy, target.id, now)
       } else { enemy.mode = 'chase'; move(enemy, target.pos, cfg.speed * dt) }
     } else {
       enemy.target=null;enemy.alertAt=0
@@ -221,6 +230,14 @@ function move(e: Enemy, p: V3, amount: number) {
     const slide=alternatives.find(v=>!blocked(v));if(slide)e.pos=slide;return
   }
   e.pos = next
+}
+
+function hit(s: GameState, enemy: Enemy, id: string, now: number) {
+  const v = s.vitals[id] ??= freshVital()
+  if (now < v.invulnerableUntil) return
+  v.hp = Math.max(0,v.hp-NINJA_DAMAGE[s.difficulty]); v.hurtAt = now; v.invulnerableUntil = now + COMBAT.invulnerable
+  enemy.alertAt = now; enemy.mode = 'chase'; s.serial++
+  if (v.hp === 0) capture(s,enemy,id,now)
 }
 
 function capture(s: GameState, enemy: Enemy, id: string, now: number) {

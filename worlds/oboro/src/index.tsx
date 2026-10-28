@@ -6,6 +6,7 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { Clickable, FaceCamera, SpawnPad, SpatialSound, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
 import * as T from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { Combat } from './Combat'
 import { MovementEffects, type MovementVisual } from './MovementEffects'
 import { Pad, Rope, Touch, markWarp } from './Pads'
 import { Taiko, play, setCuesEnabled, type Mood } from './audio'
@@ -32,7 +33,7 @@ function useGame(){
       if(rt.hostId()!==rt.self().peerId || !rt.players().some(p=>p.peerId===from.peerId))return
       const s=(rt.state.get(STATE)??initialState()) as GameState
       const cmd=payload as Command,pose=rt.pose(from.peerId);if(!pose)return
-      const next=command(s,cmd,{id:from.peerId,pos:pose.position,grounded:pose.grounded},rt.clock().now(),from.peerId===rt.hostId())
+      const next=command(s,cmd,{id:from.peerId,pos:pose.position,grounded:pose.grounded,yaw:pose.yaw},rt.clock().now(),from.peerId===rt.hostId())
       if(next!==s){rt.state.set(STATE,next);if(cmd.kind==='recover')rt.events.emit('oboro:rescue',{run:s.run},from.peerId)}
     })
   },[rt,host])
@@ -88,7 +89,7 @@ function Oboro(){
   const setSound=(value:boolean)=>{saveSound(value);if(value)void rt.audioListener().context.resume().catch(()=>{})}
   return <>
     <color attach="background" args={['#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
-    <hemisphereLight args={['#c0d5e4','#5b4230',1.0]}/><SoftLighting settings={visuals} motion={motion}/><MovementEffects state={game.state} sound={sound} visual={motion}/>
+    <hemisphereLight args={['#c0d5e4','#5b4230',1.0]}/><SoftLighting settings={visuals} motion={motion}/><MovementEffects state={game.state} sound={sound} visual={motion}/><Combat state={game.state} sound={sound} materials={m}/>
     <directionalLight position={[-12,22,10]} color="#c7daec" intensity={1.7} castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-27} shadow-camera-right={27} shadow-camera-top={30} shadow-camera-bottom={-28} shadow-camera-far={70} shadow-bias={-.0004} shadow-normalBias={.025} shadow-radius={3}/>
     <pointLight position={[0,5,-20]} color="#889bff" intensity={16} distance={10} decay={2}/>
     <pointLight position={[-14,-.5,-18]} color="#4faeaa" intensity={12} distance={9} decay={2}/>

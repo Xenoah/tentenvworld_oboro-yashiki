@@ -97,7 +97,7 @@ test('ninjas see a forward cone (plus close range); byobu blocks sight; smoke st
 test('casual capture: 見習い/忍び send the caught player to the cell; a teammate or the timer frees them',async()=>{
  const {JAIL_TIME,JAIL_TIME_TEAM,JAIL_LOCK,CAPTURE_PENALTY}=await import('../worlds/oboro/src/game.ts')
  const catchAt=(s:GameState,players:Player[],at:number)=>{s.enemies[0]={pos:[6,0,0],target:null,alertAt:0,waypoint:0,mode:'patrol',yaw:0};s.enemies[1].pos=[-8,0,-9];for(const pl of players)s.protectedUntil[pl.id]=0;s.updatedAt=at
-   s=tick(s,players,at+200);return tick(s,players,at+200+(DIFFICULTIES[s.difficulty].windup+.5)*1000)}
+   for(let i=1;i<=80&&!s.jailed.host;i++)s=tick(s,players,at+i*200);return s}
  const me:Player={id:'host',pos:[6,0,.8]};let s=catchAt(start('easy'),[me],t0+20000)
  assert.equal(s.phase,'running');assert.ok(s.jailed.host);assert.equal(s.captures,1)
  assert.equal(command(s,{run:s.run,kind:'key:fire'},{id:'host',pos:actionPos(s,'key:fire')!},t0+24000,true),s,'jailed players cannot act')
@@ -105,7 +105,7 @@ test('casual capture: 見習い/忍び send the caught player to the cell; a tea
  const solved=act(solve(start('easy')),'exit');const penal=act(solve(catchAt(start('easy'),[me],t0+20000)),'exit')
  assert.ok(solved.score-penal.score>=CAPTURE_PENALTY-1)
  let t=catchAt(start('normal'),[me,{id:'guest',pos:[0,0,12]}],t0+20000);assert.ok(t.jailed.host-(t0+20000)>JAIL_TIME.normal,'team cell waits for a rescuer')
- assert.ok(t.jailed.host<=t0+23000+JAIL_TIME_TEAM)
+ assert.ok(t.jailed.host<=t.updatedAt+JAIL_TIME_TEAM)
  t=command(t,{run:t.run,kind:'free'},{id:'guest',pos:[JAIL_LOCK[0]+.5,0,JAIL_LOCK[2]]},t0+25000,false);assert.deepEqual(t.jailed,{})
 })
 test('疾風 mode: three random rooms, three minutes, gate opens with those seals only',async()=>{

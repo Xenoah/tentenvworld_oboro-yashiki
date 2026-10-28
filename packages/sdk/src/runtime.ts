@@ -187,6 +187,8 @@ export interface WorldRuntime {
     version: 1
     set: (profile: LocomotionProfile | null) => void
     impulse: (velocity: Vector3Tuple) => void
+    /** Oboro v1.4: renewable 300ms sprint restriction, optional on older clients. */
+    setSprintAllowed?: (allowed: boolean | null) => void
   }
 
   /** ワールドのファイルの基準 URL（末尾 /） */

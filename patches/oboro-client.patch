@@ -7,12 +7,12 @@
 +  /** Optional horizontal speed already carried by the official pose protocol (m/s). */
 +  speed?: number
  }
- 
+
  export interface ClickSpec {
-@@ -170,7 +172,23 @@
+@@ -170,7 +172,25 @@
    revision: () => number
  }
- 
+
 +/** Oboro optional extension. A renewable local movement lease, not a network authority API. */
 +export interface LocomotionProfile {
 +  mode: 'float' | 'swim' | 'surface'
@@ -28,6 +28,8 @@
 +    version: 1
 +    set: (profile: LocomotionProfile | null) => void
 +    impulse: (velocity: Vector3Tuple) => void
++    /** Oboro v1.4: renewable 300ms sprint restriction, optional on older clients. */
++    setSprintAllowed?: (allowed: boolean | null) => void
 +  }
 +
    /** ワールドのファイルの基準 URL（末尾 /） */
@@ -43,24 +45,25 @@
 +export type { LocomotionProfile } from './runtime'
 --- a/apps/client/src/world/engine.ts
 +++ b/apps/client/src/world/engine.ts
-@@ -111,6 +111,8 @@
+@@ -111,6 +111,9 @@
    readonly runtime: WorldRuntime
    private deviceEv = new Emitter<[DeviceKind]>()
    /** 移動の処理（LocalPlayer）が受け取るテレポート */
 +  movementLease: { profile: import('@tentenv/sdk').LocomotionProfile; expires: number } | null = null
 +  movementImpulse: Vector3 | null = null
++  sprintLease: { allowed: boolean; expires: number } | null = null
    pendingTeleport: { position: Vector3; yaw?: number } | null = null
    /** つかめる物を自分が持っているか（同時に 2 つまで） */
    held: Record<'left' | 'right' | 'desktop', string | null> = { left: null, right: null, desktop: null }
-@@ -249,6 +251,7 @@
+@@ -249,6 +252,7 @@
        grounded: p.grounded,
        sitting: !!p.sitting,
        velocity: v(p.velocity),
 +      speed: p.speed,
      }
    }
- 
-@@ -289,6 +292,15 @@
+
+@@ -289,6 +293,16 @@
        remove: async (key: string) => (api ? api.storageDel(worldId, scope, key) : localKv(worldId, scope).remove(key)),
      })
      const rt: WorldRuntime = {
@@ -71,6 +74,7 @@
 +          if (!['float','swim','surface'].includes(profile.mode) || ![...profile.min,...profile.max,...(profile.up ?? [0,1,0])].every(Number.isFinite)) return
 +          this.movementLease = { profile: { ...profile, speed: Math.max(.3, Math.min(6, profile.speed ?? 2)) }, expires: performance.now() + 300 }
 +        },
++        setSprintAllowed: (allowed) => { this.sprintLease = allowed === null ? null : { allowed: !!allowed, expires: performance.now()+300 } },
 +        impulse: (v) => { if (v.every(Number.isFinite)) this.movementImpulse = new Vector3(...v).clampLength(0, 14) },
 +      },
        baseUrl: ctx.world.baseUrl,
@@ -83,7 +87,7 @@
  import { playspaceOriginY, updatePlayspaceLift } from './playspaceLift'
  import { vrStickSpeed } from './vrStickSpeed'
 +import { applicableLease } from '../world/locomotionLease'
- 
+
  const RADIUS = 0.25
  const STAND_HALF = 0.55
 @@ -101,6 +102,14 @@
@@ -109,22 +113,32 @@
        phys.body.setTranslation(tp.position, true)
        phys.body.setNextKinematicTranslation(tp.position)
        S.vy = 0
-@@ -238,6 +248,12 @@
+@@ -210,7 +220,8 @@
+     const crouchMul = p.prone ? 0.35 : p.crouch ? 0.55 : 1
+     const vrMagnitude = Math.min(1, Math.hypot(vrMove.x, vrMove.y))
+     const vrOnly = xr && vrMagnitude > 0 && f.moveX === 0 && f.moveY === 0 && !f.run
+-    const speedFactor = vrOnly ? vrStickSpeed(vrMagnitude, s.runMultiplier) / vrMagnitude : f.run ? s.runMultiplier : 1
++    const sprintAllowed = !engine.sprintLease || engine.sprintLease.expires < performance.now() || engine.sprintLease.allowed
++    const speedFactor = !sprintAllowed ? 1 : vrOnly ? vrStickSpeed(vrMagnitude, s.runMultiplier) / vrMagnitude : f.run ? s.runMultiplier : 1
+     const speed = WALK_SPEED * speedFactor * crouchMul * (xr ? scale : 1)
+     const fwd = new Vector3(-Math.sin(dirYaw), 0, -Math.cos(dirYaw))
+     const right = new Vector3(-fwd.z, 0, fwd.x)
+@@ -237,6 +248,12 @@
+       p.jumping = false
      }
      S.vy = Math.max(S.vy, -50)
- 
++
 +    if (engine.movementImpulse) {
 +      const impulse = engine.movementImpulse; engine.movementImpulse = null
 +      S.vy = impulse.y; p.velocity.x = impulse.x; p.velocity.z = impulse.z
 +      p.grounded = false; p.jumping = true
 +    }
-+
+
      // VR: 実際に歩いた分も体を動かす（頭の真下に体を置く）
      let roomDelta = new Vector3()
-     let headLocal: { p: Vector3; q: Quaternion } | null = null
-@@ -275,6 +291,31 @@
+@@ -275,6 +292,31 @@
      }
- 
+
      const desired = new Vector3(p.velocity.x * dt + roomDelta.x, liftTargetY === null ? S.vy * dt : liftTargetY - p.position.y, p.velocity.z * dt + roomDelta.z)
 +    if (mobility && !p.sitting) {
 +      const speed = mobility.speed ?? 2
@@ -154,7 +168,7 @@
      if (p.sitting) {
        const seatP = new Vector3()
        p.sitting.obj.updateWorldMatrix(true, false)
-@@ -290,7 +331,7 @@
+@@ -290,7 +332,7 @@
        const mv = phys.cc.computedMovement()
        const next = p.position.clone().add(new Vector3(mv.x, mv.y, mv.z))
        p.grounded = phys.cc.computedGrounded()
@@ -163,7 +177,7 @@
        phys.body.setNextKinematicTranslation(next)
        // VR で壁に当たったら、部屋ごと押し戻す
        if (xr) {
-@@ -329,6 +370,7 @@
+@@ -329,6 +371,7 @@
            o.position.set(p.position.x - hw.x, playspaceOriginY(p.position.y, seatedLift, S.playspaceLift, liftTargetY), p.position.z - hw.z)
          }
        }
@@ -171,7 +185,7 @@
        o.updateMatrixWorld(true)
        // 頭（ワールド）
        if (headLocal) {
-@@ -361,10 +403,12 @@
+@@ -361,10 +404,12 @@
        let eyeY = eye * crouchEye + s.desktopEyeOffset
        if (p.sitting) eyeY = eye - avatarHipsAboveSeat(eye) + 0.02
        if (p.sleep !== SleepPose.None) eyeY = 0.3
@@ -200,7 +214,7 @@
 +    this.dragLook=enabled;this.dragPoint=null;this.mouseDX=this.mouseDY=0
 +    if(enabled&&document.pointerLockElement===this.canvas)void document.exitPointerLock()
 +  }
- 
+
    attach(canvas: HTMLElement) {
      this.canvas = canvas
 @@ -83,15 +91,23 @@
@@ -278,7 +292,7 @@
 +  private discoveryTick = 0
 +  private lastSweep = Date.now()
    private timer: ReturnType<typeof setInterval>
- 
+
    constructor(room: string, user: UserSummary) {
 @@ -26,9 +28,15 @@
      this.ch.onmessage = (e) => this.onWire(e.data as Wire)
@@ -324,7 +338,7 @@
 +++ b/apps/client/vite.config.ts
 @@ -2,6 +2,7 @@
  import { defineConfig } from 'vite'
- 
+
  export default defineConfig({
 +  base: process.env.OBORO_BASE_PATH || '/',
    plugins: [react()],
@@ -353,19 +367,19 @@
 +  } catch { /* Storage may be unavailable; current in-memory defaults still work. */ }
 +  useSettings.getState().set({ autoEnterVR: false, startMuted: true })
 +}
- 
+
  createRoot(document.getElementById('root')!).render(<App />)
 --- a/apps/client/src/ui/Brand.tsx
 +++ b/apps/client/src/ui/Brand.tsx
 @@ -1,8 +1,8 @@
  import type { ServerInfo } from '@tentenv/protocol'
  import { useState } from 'react'
- 
+
 -const DEFAULT_NAME = 'TenTenV'
 -const DEFAULT_LOGO = '/icon.svg'
 +const DEFAULT_NAME = import.meta.env.VITE_OBORO_DEMO === '1' ? '朧の屋敷 — OBORO' : 'TenTenV'
 +const DEFAULT_LOGO = `${import.meta.env.BASE_URL}icon.svg`
- 
+
  export const brandingOf = (info: ServerInfo | null, server: string | null) => {
    const name = info?.branding?.siteName?.trim() || DEFAULT_NAME
 --- a/apps/client/src/world/WorldSession.tsx
@@ -375,9 +389,9 @@
  import { useAvatarExt } from '../state/avatarExt'
  import { VoiceRelay } from '../net/voiceRelay'
 +import { perfStats } from '../features/perf'
- 
+
  type Joined = Extract<ServerSignal, { t: 'joined' }>
- 
+
 @@ -177,7 +178,7 @@
        engineRef.current = engine
        setActiveEngine(engine)
@@ -474,10 +488,10 @@
 +import { GraphicsGuard } from './ui/GraphicsGuard'
  // 3D の部分は必要になってから読み込む（ホーム画面を速く開くため）
  const WorldSession = lazy(() => import('./world/WorldSession').then((m) => ({ default: m.WorldSession })))
- 
+
 @@ -107,11 +108,11 @@
    }, [])
- 
+
    let body: React.ReactNode
 -  if (screen.kind === 'dev') body = <WorldSession devUrl={screen.worldUrl} />
 +  if (screen.kind === 'dev') body = <GraphicsGuard><WorldSession devUrl={screen.worldUrl} /></GraphicsGuard>

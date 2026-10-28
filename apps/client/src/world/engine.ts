@@ -113,6 +113,7 @@ export class WorldEngine {
   /** 移動の処理（LocalPlayer）が受け取るテレポート */
   movementLease: { profile: import('@tentenv/sdk').LocomotionProfile; expires: number } | null = null
   movementImpulse: Vector3 | null = null
+  sprintLease: { allowed: boolean; expires: number } | null = null
   pendingTeleport: { position: Vector3; yaw?: number } | null = null
   /** つかめる物を自分が持っているか（同時に 2 つまで） */
   held: Record<'left' | 'right' | 'desktop', string | null> = { left: null, right: null, desktop: null }
@@ -299,6 +300,7 @@ export class WorldEngine {
           if (!['float','swim','surface'].includes(profile.mode) || ![...profile.min,...profile.max,...(profile.up ?? [0,1,0])].every(Number.isFinite)) return
           this.movementLease = { profile: { ...profile, speed: Math.max(.3, Math.min(6, profile.speed ?? 2)) }, expires: performance.now() + 300 }
         },
+        setSprintAllowed: (allowed) => { this.sprintLease = allowed === null ? null : { allowed: !!allowed, expires: performance.now()+300 } },
         impulse: (v) => { if (v.every(Number.isFinite)) this.movementImpulse = new Vector3(...v).clampLength(0, 14) },
       },
       baseUrl: ctx.world.baseUrl,

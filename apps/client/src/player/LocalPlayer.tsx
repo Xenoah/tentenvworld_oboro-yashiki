@@ -220,7 +220,8 @@ export const LocalPlayer: React.FC<LocalPlayerProps> = ({ engine, avatarEye }) =
     const crouchMul = p.prone ? 0.35 : p.crouch ? 0.55 : 1
     const vrMagnitude = Math.min(1, Math.hypot(vrMove.x, vrMove.y))
     const vrOnly = xr && vrMagnitude > 0 && f.moveX === 0 && f.moveY === 0 && !f.run
-    const speedFactor = vrOnly ? vrStickSpeed(vrMagnitude, s.runMultiplier) / vrMagnitude : f.run ? s.runMultiplier : 1
+    const sprintAllowed = !engine.sprintLease || engine.sprintLease.expires < performance.now() || engine.sprintLease.allowed
+    const speedFactor = !sprintAllowed ? 1 : vrOnly ? vrStickSpeed(vrMagnitude, s.runMultiplier) / vrMagnitude : f.run ? s.runMultiplier : 1
     const speed = WALK_SPEED * speedFactor * crouchMul * (xr ? scale : 1)
     const fwd = new Vector3(-Math.sin(dirYaw), 0, -Math.cos(dirYaw))
     const right = new Vector3(-fwd.z, 0, fwd.x)
