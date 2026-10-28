@@ -67,14 +67,14 @@ function Oboro(){
     <Moon/><Water/><Dust/><ComfortCurtain enabled={comfort}/>
     <Board game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} materials={m}/>
     <Gimmicks game={game} m={m} comfort={comfort}/>
-    <Mobility game={game} comfort={comfort}/>
+    <Mobility game={game} comfort={comfort} m={m}/>
     {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'}/>) }
     {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
     {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals}/>}
   </>
 }
-function Button3D({text,position,onClick,material,width=1.1}:{text:string;position:V3;onClick:()=>void;material:T.Material;width?:number}){
-  return <Clickable label={text.replace(/\n/g,' ')} reach={3.3} position={position} onClick={onClick}>
+function Button3D({text,position,onClick,material,width=1.1,rotation}:{text:string;position:V3;onClick:()=>void;material:T.Material;width?:number;rotation?:V3}){
+  return <Clickable label={text.replace(/\n/g,' ')} reach={3.3} position={position} rotation={rotation} onClick={onClick}>
     <mesh material={material} castShadow><boxGeometry args={[width,.38,.14]}/></mesh>
     <TextPlane text={text} width={width-.08} lineHeight={.11} position={[0,0,.076]} color="#fff0ca" padding={.01}/>
   </Clickable>
@@ -121,8 +121,8 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
       <mesh material={m.brass}><boxGeometry args={[.6,.05,.08]}/></mesh>
       <TextPlane text={s.valves.includes(i)?'開':'水門'} width={.7} lineHeight={.13} position={[0,.6,0]}/>
     </Clickable>)}
-    <Button3D text="水牢へ潜る" position={[-12,1,-12.6]} material={m.ink} onClick={()=>{if(s.phase==='running')warp([-12,-1.8,-16])}}/>
-    <Button3D text="水底へ" position={[-12,-.8,-16]} material={m.ink} onClick={()=>warp([-14,-2.7,-17])}/>
+    <Button3D text="水牢へ潜る" position={[-12,1,-12.6]} material={m.ink} onClick={()=>{if(s.phase==='running')warp(rt.locomotion?[-12,-1.8,-16]:[-12.6,-2.9,-16.6])}}/>
+    {rt.locomotion&&<Button3D text="水底へ" position={[-12,-.8,-16]} material={m.ink} onClick={()=>warp([-14,-2.7,-17])}/>}
     <Button3D text="岸へ浮上" position={[-14,-1.8,-18.8]} material={m.ink} onClick={()=>warp([-12,.15,-12])}/>
     <TextPlane text="四　星 蔵\n一 → 二 → 三。空を歩き、印を結ぶ" width={4} lineHeight={.23} position={[0,3.2,-15]} color="#bfcaee"/>
     {[0,1,2].map(i=><group key={i} position={ACTIONS[`star:${i}`]}>
@@ -135,10 +135,10 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
       <Button3D text="浮遊足場 三" position={[2,3.8,-20.5]} material={m.ink} onClick={()=>warp([-2,4.6,-21])}/>
       <Button3D text="空の印へ" position={[-2,5.5,-21.5]} material={m.ink} onClick={()=>warp([0,4.6,-19])}/>
     </>}
-    <Button3D text="星蔵から戻る" position={[0,5.8,-20.8]} material={m.ink} onClick={()=>warp([0,.1,-13])}/>
+    <Button3D text="星蔵から戻る" position={[2.2,5.2,-20.4]} material={m.ink} onClick={()=>warp([0,.1,-13])}/>
     <TextPlane text="五　天井回廊\n足袋の印で壁へ。次に天井へ。" width={4} lineHeight={.23} position={[15,3.2,-15]} color="#d9bb7c"/>
     <SurfaceButtons m={m} game={g} comfort={comfort}/>
-    <Button3D text={s.keys.length===5?'五印を納め、脱出':'脱出門 / 五つの印が必要'} position={ACTIONS.exit} width={2.7} material={s.keys.length===5?m.brass:m.red} onClick={()=>g.send('exit')}/>
+    <Button3D text={s.keys.length===5?'五印を納め、脱出':'脱出門 / 五つの印が必要'} position={ACTIONS.exit} rotation={[0,Math.PI,0]} width={2.7} material={s.keys.length===5?m.brass:m.red} onClick={()=>g.send('exit')}/>
     <TextPlane text="忍者は中庭を巡回。玄関・縁側・試練の部屋は安全。" width={6} lineHeight={.14} position={[0,3.2,8]} color="#c8d4c8"/>
   </>
 }
@@ -156,7 +156,8 @@ function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolea
     <Button3D text="壁から戻る" position={[10.7,1.5,-19.4]} material={m.ink} onClick={()=>enter('floor')}/>
   </>
 }
-function Mobility({game:g,comfort}:{game:Game;comfort:boolean}){
+const FOOTRESTS:V3[]=[[-2,.85,-17],[2,2.65,-20],[-2,4.45,-21],[0,4.45,-19],[10,1.35,-18],[14,4.15,-19],[16,4.15,-20]]
+function Mobility({game:g,comfort,m}:{game:Game;comfort:boolean;m:Materials}){
   const rt=useRuntime(),device=useDevice(),surface=useRef<'wall'|'ceiling'|'floor'>('floor'),lastRescue=useRef(0)
   useEffect(()=>rt.events.on('oboro:surface-local',(p,from)=>{if(from.peerId===rt.self().peerId)surface.current=(p as {mode:typeof surface.current}).mode}),[rt])
   useEffect(()=>{surface.current='floor';rt.locomotion?.set(null);return()=>rt.locomotion?.set(null)},[g.state.run,g.state.phase])
@@ -177,7 +178,9 @@ function Mobility({game:g,comfort}:{game:Game;comfort:boolean}){
   },-4)
   // Compatibility footrests for stock clients; official rigidbody API only.
   if(rt.locomotion)return null
-  return <RigidBody type="fixed" colliders={false}>{[[-2,.85,-17],[2,2.65,-20],[-2,4.45,-21],[0,4.45,-19],[-14,-2.85,-17],[10,1.35,-18],[14,4.15,-19],[16,4.15,-20]].map((p,i)=><CuboidCollider key={i} args={[1,.08,1]} position={p as V3}/>)}</RigidBody>
+  // Visible lacquered planks: the standard client stands on these instead of swimming, floating or wall walking.
+  return <><RigidBody type="fixed" colliders={false}>{FOOTRESTS.map((p,i)=><CuboidCollider key={i} args={[1,.08,1]} position={p}/>)}</RigidBody>
+    {FOOTRESTS.map((p,i)=><group key={i} position={p}><mesh material={m.cedar} castShadow receiveShadow><boxGeometry args={[2,.16,2]}/></mesh><mesh material={m.brass} position={[0,-.1,0]}><boxGeometry args={[2.06,.04,2.06]}/></mesh></group>)}</>
 }
 function RotatingDoor({open,m}:{open:boolean;m:Materials}){
   const ref=useRef<T.Group>(null),body=useRef<import('@react-three/rapier').RapierRigidBody>(null),angle=useRef(0)
@@ -241,12 +244,13 @@ function Hud({game:g,comfort,setComfort,sound,setSound,help,setHelp,visuals,setV
       <p style={{fontSize:10,color:'#8da69c',margin:'14px 0 0'}}>1人でも、4人でも。鍵は全員で共有されます。</p>
     </div>}
     <div style={{position:'absolute',bottom:73,left:'50%',transform:'translateX(-50%)',...panel,padding:'11px 20px',fontSize:12,textAlign:'center',maxWidth:'70vw',whiteSpace:'normal',color:'#d4d6bc'}} data-testid="message">{g.message}</div>
-    <div className="oboro-toolbar" style={{position:'absolute',bottom:20,left:28,right:28,display:'flex',gap:8,justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:11,color:'#bccabf',textShadow:'0 2px 8px #000'}}>WASD 移動　/　マウス 視点　/　E・クリック 調べる　/　Space 上昇　Q 下降</div><div style={{display:'flex',gap:7,pointerEvents:'auto'}}><button style={button} onClick={()=>setComfort(!comfort)}>{comfort?'◉ 快適移動':'○ 自由移動'}</button><button style={button} onClick={()=>setSound(!sound)}>{sound?'音：入':'音：切'}</button><button style={button} onClick={()=>setHelp(!help)}>手引き</button><button data-testid="visual-settings" style={button} onClick={()=>setVisualOpen(!visualOpen)}>映像</button>{s.phase==='running'&&<button style={button} onClick={()=>g.send('recover')}>玄関へ帰還</button>}</div></div>
+    <div className="oboro-toolbar" style={{position:'absolute',bottom:20,left:28,right:28,display:'flex',gap:8,justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:11,color:'#bccabf',textShadow:'0 2px 8px #000'}}>{controlsText(!!rt.locomotion)}</div><div style={{display:'flex',gap:7,pointerEvents:'auto'}}><button style={button} onClick={()=>setComfort(!comfort)}>{comfort?'◉ 快適移動':'○ 自由移動'}</button><button style={button} onClick={()=>setSound(!sound)}>{sound?'音：入':'音：切'}</button><button style={button} onClick={()=>setHelp(!help)}>手引き</button><button data-testid="visual-settings" style={button} onClick={()=>setVisualOpen(!visualOpen)}>映像</button>{s.phase==='running'&&<button style={button} onClick={()=>g.send('recover')}>玄関へ帰還</button>}</div></div>
     {visualOpen&&<div className="oboro-help" data-testid="visual-panel" style={{...panel,position:'absolute',right:28,top:230,width:300,padding:22,pointerEvents:'auto',fontSize:12,lineHeight:1.9,zIndex:5}}><strong>柔らかな光</strong><div style={{display:'flex',gap:6,margin:'12px 0'}}>{([['auto','標準'],['low','軽量'],['off','切']] as const).map(([mode,label])=><button data-testid={`glow-${mode}`} key={mode} style={{...button,background:visuals.mode===mode?'#8a6e43':'#233c3c'}} onClick={()=>setVisuals({...visuals,mode})}>{label}</button>)}</div><label>光のにじみ　{Math.round(visuals.glow*100)}%<input data-testid="glow-strength" aria-label="光のにじみ" type="range" min="0" max=".55" step=".01" value={visuals.glow} onChange={e=>setVisuals({...visuals,glow:Number(e.target.value)})} style={{width:'100%'}}/></label><label style={{display:'block',marginTop:12}}>移動ブラー　{Math.round(visuals.blur*100)}%<input data-testid="motion-blur" aria-label="移動ブラー" type="range" min="0" max=".6" step=".01" value={visuals.blur} onChange={e=>setVisuals({...visuals,blur:Number(e.target.value)})} style={{width:'100%'}}/></label><label style={{display:'block',marginTop:12}}><input data-testid="baked-shading" type="checkbox" checked={visuals.shading} onChange={e=>setVisuals({...visuals,shading:e.target.checked})}/> 細部の陰影と灯り</label><p style={{color:'#adbcaf',marginBottom:0}}>軽量設定は灯りの周囲だけを柔らかくします。携帯端末・低解像度では自動で軽量表示。VRではにじみとブラーを無効にします。ブラーは0でOFF、携帯端末・低解像度でもOFFです。難易度には影響しません。</p></div>}
-    {help&&<div className="oboro-help" style={{...panel,position:'absolute',right:28,top:230,width:360,maxHeight:'55vh',overflow:'auto',padding:24,pointerEvents:'auto',fontSize:12,lineHeight:1.9}}><strong style={{color:'#dfc18a'}}>探索の手引き</strong><p>画面をクリックして視点操作。Esc でカーソルを戻します。照準を合わせて E またはクリック。VR はレイとトリガー。</p>{KEYS.map(k=><p key={k.id}>{k.hint}</p>)}<p>Shiftでダッシュ、Spaceで跳躍。下降中、足元が地面から75cm以内になったらXか「静音着地」を一度押す。早押し・押し忘れは足音となり、忍者が音の方向を捜索。VRは右B（実機未検証）。音のミュートでも忍者の聴覚は変わりません。</p><p>中庭の忍者は攻撃前に構えます。石や部屋に隠れ、距離を取ってください。捕まると全員敗北。帰還は -150 点。快適移動は難易度と無関係です。</p><p>泳ぎ・浮遊：向いた方向へ WASD、Space 上昇、Q 下降。VR は上を向いて前進またはトリガー上昇。壁／天井は低速移動。快適モードは水平視点とワープ足場。</p><p style={{color:'#8ca69b'}}>コード・素材：AGPL-3.0-only / TenTenV contributors + Oboro contributors。保証なし。対応ソースと導入手順を配布物に同梱。</p></div>}
+    {help&&<div className="oboro-help" style={{...panel,position:'absolute',right:28,top:230,width:360,maxHeight:'55vh',overflow:'auto',padding:24,pointerEvents:'auto',fontSize:12,lineHeight:1.9}}><strong style={{color:'#dfc18a'}}>探索の手引き</strong><p>画面をクリックして視点操作。Esc でカーソルを戻します。{rt.locomotion?'照準を合わせて E またはクリック。':'照準を合わせてクリック（標準クライアントではEキーは使えません）。'}VR はレイとトリガー。</p>{KEYS.map(k=><p key={k.id}>{k.hint}</p>)}<p>Shiftでダッシュ、Spaceで跳躍。下降中、足元が地面から75cm以内になったらXか「静音着地」を一度押す。早押し・押し忘れは足音となり、忍者が音の方向を捜索。VRは右B（実機未検証）。音のミュートでも忍者の聴覚は変わりません。</p><p>中庭の忍者は攻撃前に構えます。石や部屋に隠れ、距離を取ってください。捕まると全員敗北。帰還は -150 点。快適移動は難易度と無関係です。</p><p>{rt.locomotion?'泳ぎ・浮遊：向いた方向へ WASD、Space 上昇、Q 下降。':'標準クライアントでは泳ぎ・浮遊・壁歩きの代わりに木の足場とワープを使います。下降は左Ctrl。'}VR は上を向いて前進またはトリガー上昇。壁／天井は低速移動。快適モードは水平視点とワープ足場。</p><p style={{color:'#8ca69b'}}>コード・素材：AGPL-3.0-only / TenTenV contributors + Oboro contributors。保証なし。対応ソースと導入手順を配布物に同梱。</p></div>}
   </div></Html>
 }
 
+export const controlsText=(extended:boolean)=>extended?'WASD 移動　/　マウス 視点　/　E・クリック 調べる　/　Space 上昇　Q 下降':'WASD 移動　/　マウス 視点　/　クリック 調べる　/　Space 跳躍　Ctrl 下降'
 /** Fade within the 3D scene after large positional jumps; works in both eyes in XR. */
 function ComfortCurtain({enabled}:{enabled:boolean}){
   const {camera}=useThree(),rt=useRuntime(),ref=useRef<T.Mesh>(null),last=useRef<V3|null>(null),fade=useRef(0)

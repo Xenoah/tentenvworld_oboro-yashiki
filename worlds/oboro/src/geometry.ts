@@ -61,8 +61,9 @@ export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
       cyl([x,y+1.86,z],.66,.36,'stone',undefined,.14,4);stone([x,y+2.13,z],[.13,.18,.13],'stone')
     }
     // Foundation, garden and perimeter.
-    box([5.8,-.4,-1],[32.4,.6,43],'stone');box([-16.3,-.4,4.2],[11.8,.6,18.6],'stone');box([-20.4,-.4,-18],[3.2,.6,14],'stone');box([0,-.07,-.5],[18,.11,21],'gravel')
-    for(const x of [-21.6,21.6]){box([x,1.2,-2],[.35,2.4,41],'plaster');box([x,2.48,-2],[.7,.17,41],'roof')}
+    box([5.8,-.4,-1],[32.4,.6,43],'stone');box([-16.3,-.4,4.2],[11.8,.6,18.6],'stone');box([-20.3,-.4,-18.5],[3.9,.6,15],'stone');box([-16.3,-.4,-9.45],[11.8,.6,8.7],'stone');box([5.8,-.4,-24.5],[32.4,.6,3],'stone');box([-16.3,-.4,17],[11.8,.6,7],'stone');box([-14.6,-.4,-24.25],[9.2,.6,3.5],'stone');box([0,-.07,-.5],[18,.11,21],'gravel')
+    for(const x of [-21.6,21.6]){box([x,1.2,-3.1],[.35,2.4,45.8],'plaster');box([x,2.48,-3.1],[.7,.17,45.8],'roof')}
+    box([0,1.2,19.8],[43.4,2.4,.35],'plaster');box([0,2.48,19.8],[44,.17,.7],'roof')
     box([0,1.3,-26],[43.4,2.6,.35],'plaster');box([0,2.65,-26],[44,.18,.8],'roof')
     // Covered southern engawa and imposing gate.
     room(0,12.5,18,5,3.7)
@@ -81,6 +82,8 @@ export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
     for(let xx=-17.6;xx<-9.5;xx+=2.05)for(let zz=-4.8;zz<5;zz+=3.04){box([xx,.025,zz],[1.98,.07,2.96],'tatami');for(const dx of [-.96,.96])box([xx+dx,.07,zz],[.055,.028,2.96],'cloth')}
     for(let z=-4;z<=4;z+=2.65)shoji([-19,1.65,z],2.5,2.7,Math.PI/2)
     for(const z of [-6,6])for(let x=-17.5;x<-10;x+=2.5)shoji([x,1.65,z],2.4,2.7)
+    // The revolving door is the only way into the alcove: fixed partitions close both sides.
+    shoji([-15,1.65,3.4],5.2,2.7,Math.PI/2);shoji([-15,1.65,-5.4],1.2,2.7,Math.PI/2)
     box([-16.8,1.6,-4.9],[4,.16,.24],'darkwood');box([-17,.1,-4],[3,.2,2],'cedar')
     box([-17,1.3,-5.7],[1.6,2.5,.08],'paper');box([-17,2.6,-5.68],[1.8,.08,.1],'darkwood')
     // Low writing desk, scrolls, inkstone, ceremonial shelves.
@@ -125,10 +128,10 @@ export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
     for(const x of [-6,6])for(let z=-8;z<8;z+=4)lantern(x,z)
     // Bamboo groves and Japanese maple. Lightweight faceted leaf clumps avoid alpha overdraw.
     for(const side of [-1,1])for(let i=0;i<17;i++){
-      const x=side*(19.8+(i%3)*.3),z=7-i*1.9,h=3.2+(i%4)*.35
+      const x=side*(side>0?20.75+(i%3)*.25:19.8+(i%3)*.3),z=7-i*1.9,h=3.2+(i%4)*.35,spread=side>0?.25:.45
       cyl([x,h/2,z],.06,h,'moss',undefined,.04,8)
       for(let y=.4;y<h;y+=.38)cyl([x,y,z],.065,.025,'darkwood',undefined,.065,8)
-      for(let j=0;j<3;j++)stone([x+Math.sin(i+j)*.45,h-.6+j*.2,z+.2],[.52,.13,.42],'moss',i+j)
+      for(let j=0;j<3;j++)stone([x+Math.sin(i+j)*spread,h-.6+j*.2,z+.2],[.52,.13,.42],'moss',i+j)
     }
     beam([-4,0,1],[-4.5,3.8,1.6],.19,'darkwood')
     for(let i=0;i<13;i++){
@@ -148,3 +151,24 @@ export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
     for(const [name,geos] of bins){result.set(name,mergeGeometries(geos,false));geos.forEach(g=>g.dispose())}
     return result
 }
+
+/** Static colliders, shared with tests that check the walkable floor has no gaps. */
+export const COLLISION_BOXES: {p:V3;s:V3}[] = (()=>{const boxes: {p:V3;s:V3}[] = [
+  // Ground excludes the pool rectangle, providing real underwater depth.
+  {p:[5.8,-.28,-1],s:[32.4,.5,42]}, {p:[-16.3,-.28,4.2],s:[11.8,.5,18.6]},
+  {p:[-20.3,-.28,-18.5],s:[3.9,.5,15]}, {p:[-14.6,-.28,-24.25],s:[9.2,.5,3.5]},
+  {p:[-14,-3.24,-18],s:[8,.3,8]}, {p:[-16.3,-.28,-9.45],s:[11.8,.5,8.7]},
+  {p:[5.8,-.28,-24],s:[32.4,.5,4]}, {p:[-16.3,-.28,17],s:[11.8,.5,7]}, {p:[0,1.2,19.8],s:[43.4,2.4,.35]},
+  {p:[-18.2,-1.3,-18],s:[.4,3.5,9]}, {p:[-9.8,-1.3,-18],s:[.4,3.5,9]},
+  {p:[-14,-1.3,-22.2],s:[8.4,3.5,.4]}, {p:[-14,-1.3,-13.8],s:[8.4,3.5,.4]},
+  {p:[0,-.02,-12],s:[39,.15,3]},
+  {p:[16,3.25,3],s:[4,.3,3.2]},
+  {p:[-19,1.8,0],s:[.2,3.6,12]}, {p:[-15,1.8,-6],s:[8,3.6,.2]}, {p:[-15,1.8,6],s:[8,3.6,.2]},
+  {p:[-15,1.8,3.4],s:[.2,3.6,5.2]}, {p:[-15,1.8,-5.4],s:[.2,3.6,1.2]},
+  {p:[9.5,3,-20],s:[.24,6,10]}, {p:[20.5,3,-20],s:[.2,6,10]}, {p:[15,6,-20],s:[11,.2,10]},
+  {p:[-4.5,3.7,-20],s:[.18,7.4,10]}, {p:[4.5,3.7,-20],s:[.18,7.4,10]}, {p:[0,3.7,-25],s:[9,7.4,.18]},
+  {p:[-21.6,1.2,-3.1],s:[.35,2.4,45.8]}, {p:[21.6,1.2,-3.1],s:[.35,2.4,45.8]}, {p:[0,1.3,-26],s:[43.4,2.6,.35]},
+  {p:[-1.5,.85,-.7],s:[2.2,1.7,4.2]}, {p:[4.6,.85,-5.2],s:[2.3,1.7,2.5]}, {p:[-7.2,.8,3],s:[1.3,1.6,2]},
+  ]
+  for(let i=0;i<7;i++)boxes.push({p:[-11,-.25-i*.43,-13.4-i*.5],s:[1.8,.3,.65]})
+  return boxes})()

@@ -23,7 +23,7 @@ export const ACTIONS: Record<string, V3> = {
   exit: [0, 1.2, 17],
 }
 export interface Player { id: string; pos: V3; joinedAt?: number; grounded?: boolean; speed?: number }
-export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search'; heardId?:number; searchUntil?:number; investigate?:V3 }
+export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search'; heardId?:number; searchUntil?:number; investigate?:V3; reverse?:boolean }
 export interface GameState {
   version: 1; run: number; phase: 'lobby' | 'running' | 'won' | 'lost'; difficulty: Difficulty;
   startedAt: number; updatedAt: number; endedAt: number; keys: string[]; rune: number; door: boolean;
@@ -34,8 +34,8 @@ export type Command = { run: number; kind: string; value?: string }
 export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameState => ({
   version: 1, run, phase: 'lobby', difficulty, startedAt: 0, updatedAt: 0, endedAt: 0, keys: [], rune: 0, door: false,
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
-    { pos: [-4, 0, -3], target: null, alertAt: 0, waypoint: 0, mode: 'patrol' },
-    { pos: [7, 0, -10], target: null, alertAt: 0, waypoint: 2, mode: 'patrol' },
+    { pos: [-5, 0, -8], target: null, alertAt: 0, waypoint: 1, mode: 'patrol' },
+    { pos: [7, 0, 5], target: null, alertAt: 0, waypoint: 2, mode: 'patrol', reverse: true },
   ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0,
 })
 export const distance = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
@@ -96,7 +96,9 @@ export function lineOfSight(a: V3, b: V3) {
     return true
   })
 }
-const ROUTE: V3[] = [[-5,0,-6], [5,0,-7], [7,0,3], [-5,0,5]]
+// A blocker-free perimeter loop. The second ninja walks it in reverse so both halves stay guarded.
+export const ROUTE: V3[] = [[-5,0,-8], [6,0,-9], [7.5,0,-2], [7,0,5], [-4,0,5.5], [-5,0,-1]]
+const nextWaypoint=(e:Enemy)=>(e.waypoint+(e.reverse?ROUTE.length-1:1))%ROUTE.length
 export function tick(state: GameState, players: Player[], now: number): GameState {
   if (state.phase !== 'running') return state
   const s: GameState = structuredClone(state), cfg = DIFFICULTIES[s.difficulty]
@@ -134,7 +136,7 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
         if(enemy.mode==='investigate')move(enemy,enemy.investigate,cfg.speed*.8*dt)
       }else{
         enemy.mode='patrol';delete enemy.investigate
-        const p=ROUTE[enemy.waypoint];if(distance(enemy.pos,p)<.3)enemy.waypoint=(enemy.waypoint+1)%ROUTE.length
+        const p=ROUTE[enemy.waypoint];if(distance(enemy.pos,p)<.3)enemy.waypoint=nextWaypoint(enemy)
         move(enemy,ROUTE[enemy.waypoint],cfg.speed*.45*dt)
       }
     }
