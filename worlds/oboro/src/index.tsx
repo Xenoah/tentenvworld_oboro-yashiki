@@ -25,7 +25,7 @@ function useGame(){
       if(rt.hostId()!==rt.self().peerId || !rt.players().some(p=>p.peerId===from.peerId))return
       const s=(rt.state.get(STATE)??initialState()) as GameState
       const cmd=payload as Command,pose=rt.pose(from.peerId);if(!pose)return
-      const next=command(s,cmd,{id:from.peerId,pos:pose.position},rt.clock().now(),from.peerId===rt.hostId())
+      const next=command(s,cmd,{id:from.peerId,pos:pose.position,grounded:pose.grounded},rt.clock().now(),from.peerId===rt.hostId())
       if(next!==s){rt.state.set(STATE,next);if(cmd.kind==='recover')rt.events.emit('oboro:rescue',{run:s.run},from.peerId)}
     })
   },[rt,host])

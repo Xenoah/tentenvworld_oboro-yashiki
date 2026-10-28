@@ -32,7 +32,9 @@ export function observeMotion(previous:MotionTrack|undefined,p:{pos:V3;grounded?
   if(previous.grounded&&!grounded){m.apex=Math.max(previous.pos[1],p.pos[1]);m.airFrom=now;m.braceAt=0;m.braceUsed=false;m.descending=false;emit('takeoff',surface==='tatami'?3:5,false,previous.pos)}
   if(!grounded){m.apex=Math.max(m.apex,p.pos[1]);m.descending=p.pos[1]<previous.pos[1]-.015}
   if(!previous.grounded&&grounded&&previous.airFrom){
-    const drop=Math.max(0,previous.apex-p.pos[1]),quiet=previous.braceAt>0&&now-previous.braceAt<=2000
+    // The stance belongs to this flight. A stalled renderer must not consume a wall-clock timer
+    // while the official physics advances by at most 0.1 seconds per frame.
+    const drop=Math.max(0,previous.apex-p.pos[1]),quiet=previous.braceAt>0&&previous.braceUsed
     if(drop>.22){m.lastLanding={at:now,quiet,drop};emit('landing',quiet?0:Math.min(18,8+drop*3)*(surface==='tatami'?.65:1),quiet)}
     m.airFrom=0;m.braceAt=0;m.braceUsed=false;m.descending=false;m.apex=p.pos[1];m.stepAt=now
   }

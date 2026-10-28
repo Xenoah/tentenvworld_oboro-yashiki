@@ -33,7 +33,7 @@ export function MovementEffects({state,sound,visual}:{state:GameState;sound:bool
       const mode=running&&!teleport?(air?'jump':speed>2.8&&moved>.005?'run':'idle'):'idle'
       visual.current.mode=mode;visual.current.intensity=T.MathUtils.damp(visual.current.intensity,mode==='run'?Math.min(1,(speed-2.5)/2):mode==='jump'?.65:0,teleport?100:8,dt)
       lastPose.current=[...pose.position]
-      const m=s.motion?.[id],landing=m?.lastLanding,recent=landing&&now-landing.at<2500
+      const m=s.motion?.[id],landing=m?.lastLanding,recent=landing&&!m?.airFrom
       const next={surface:groundSurface(pose.position),air:running&&air,ready:!!m&&quietWindow(m,pose.position),armed:!!m?.braceUsed,missed:!!m?.braceUsed&&!m.braceAt,result:recent?(landing.quiet?'静音着地 成功':'足音が響いた — 忍者に注意'):''}
       const key=JSON.stringify(next);if(key!==lastUI.current){lastUI.current=key;setDisplay(next)}
     }

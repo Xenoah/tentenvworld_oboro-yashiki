@@ -203,7 +203,7 @@
  
    attach(canvas: HTMLElement) {
      this.canvas = canvas
-@@ -83,15 +91,22 @@
+@@ -83,15 +91,23 @@
        this.keys.clear()
        this.rightMouseHeld = false
        this.mouseHeld = false
@@ -214,6 +214,7 @@
          this.mouseDX += e.movementX
          this.mouseDY += e.movementY
 +      } else if(this.dragLook&&this.dragPoint&&!this.suspended) {
++        if(!(e.buttons&1)){this.dragPoint=null;return}
 +        this.mouseDX+=e.clientX-this.dragPoint.x;this.mouseDY+=e.clientY-this.dragPoint.y
 +        this.dragPoint={x:e.clientX,y:e.clientY}
        }
@@ -227,7 +228,7 @@
        if (e.button === 0) {
          this.clicked = true
          this.mouseHeld = true
-@@ -103,9 +118,11 @@
+@@ -103,9 +119,11 @@
      })
      window.addEventListener('mouseup', (e) => {
        if (e.button === 0) this.mouseHeld = false
@@ -239,7 +240,7 @@
        if (document.pointerLockElement !== this.canvas) {
          this.mouseHeld = false
          this.rightMouseHeld = false
-@@ -142,7 +159,9 @@
+@@ -142,7 +160,9 @@
      this.tap = { x, y }
    }
    requestLock() {
@@ -250,7 +251,7 @@
    }
    locked() {
      return document.pointerLockElement === this.canvas
-@@ -159,7 +178,7 @@
+@@ -159,7 +179,7 @@
        f.moveX += (down('KeyD') || down('ArrowRight') ? 1 : 0) - (down('KeyA') || down('ArrowLeft') ? 1 : 0)
        f.run = down('ShiftLeft') || down('ShiftRight')
        f.jump = hit('Space')
@@ -259,7 +260,7 @@
        f.crouchToggle = hit('KeyC')
        f.proneToggle = hit('KeyZ')
        f.grabToggle = hit('KeyG')
-@@ -174,7 +193,7 @@
+@@ -174,7 +194,7 @@
        const sens = 0.0022 * s.mouseSensitivity
        f.lookYaw -= this.mouseDX * sens
        f.lookPitch -= this.mouseDY * sens * (s.invertY ? -1 : 1)

@@ -59,7 +59,7 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if (!s.roster.includes(player.id)) return state
   if (cmd.kind === 'brace') {
     const m=s.motion[player.id]
-    if(!m||m.grounded||m.braceUsed||now-m.at>800||distance(m.pos,player.pos)>1)return state
+    if(!m||m.grounded||player.grounded===true||m.braceUsed||now-m.at>3000||distance(m.pos,player.pos)>1)return state
     m.braceAt=quietWindow(m,player.pos)?now:0;m.braceUsed=true;s.serial++;return s
   } else if (cmd.kind === 'recover') {
     // A cooldown prevents accidental repeated rescue penalties and repeated event delivery.

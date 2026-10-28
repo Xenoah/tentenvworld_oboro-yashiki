@@ -98,6 +98,7 @@ class InputManager {
         this.mouseDX += e.movementX
         this.mouseDY += e.movementY
       } else if(this.dragLook&&this.dragPoint&&!this.suspended) {
+        if(!(e.buttons&1)){this.dragPoint=null;return}
         this.mouseDX+=e.clientX-this.dragPoint.x;this.mouseDY+=e.clientY-this.dragPoint.y
         this.dragPoint={x:e.clientX,y:e.clientY}
       }
