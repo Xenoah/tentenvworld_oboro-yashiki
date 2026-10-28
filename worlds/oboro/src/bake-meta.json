@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "format": "RGBA8: RGB static diffuse irradiance / 8, A distance-weighted ambient visibility",
+  "geometryHash": "3c53be78005b26ef9ca9b7c2626f15f5d29a9f6c923c0e866453553356ed7097",
+  "generatorHash": "ac60cfff643cfb1a2077098c540e936419f8b190493ae612d4cd2775d4f8b123",
+  "sha256": "1f4e718155bbcc900132c1eb1d70490684b4c6c16e97dd7535729ccaf58b6923",
+  "bytes": 933732,
+  "samples": 24,
+  "radius": 2.4,
+  "lightScale": 8,
+  "lightRange": 8,
+  "lights": [
+    [
+      -6,
+      1.5,
+      -8
+    ],
+    [
+      -6,
+      1.5,
+      -4
+    ],
+    [
+      -6,
+      1.5,
+      0
+    ],
+    [
+      -6,
+      1.5,
+      4
+    ],
+    [
+      6,
+      1.5,
+      -8
+    ],
+    [
+      6,
+      1.5,
+      -4
+    ],
+    [
+      6,
+      1.5,
+      0
+    ],
+    [
+      6,
+      1.5,
+      4
+    ],
+    [
+      -19,
+      1.5,
+      -10.5
+    ],
+    [
+      -8,
+      1.5,
+      -10.5
+    ],
+    [
+      7,
+      1.5,
+      -10.5
+    ],
+    [
+      20,
+      1.5,
+      -10.5
+    ],
+    [
+      -13,
+      2.6,
+      0
+    ],
+    [
+      -2.5,
+      2.8,
+      12
+    ],
+    [
+      2.5,
+      2.8,
+      12
+    ]
+  ],
+  "meshes": [
+    {
+      "name": "stone",
+      "vertices": 30984,
+      "offset": 0
+    },
+    {
+      "name": "gravel",
+      "vertices": 8052,
+      "offset": 123936
+    },
+    {
+      "name": "plaster",
+      "vertices": 5688,
+      "offset": 156144
+    },
+    {
+      "name": "roof",
+      "vertices": 50172,
+      "offset": 178896
+    },
+    {
+      "name": "cedar",
+      "vertices": 17148,
+      "offset": 379584
+    },
+    {
+      "name": "darkwood",
+      "vertices": 63756,
+      "offset": 448176
+    },
+    {
+      "name": "paper",
+      "vertices": 13416,
+      "offset": 703200
+    },
+    {
+      "name": "red",
+      "vertices": 276,
+      "offset": 756864
+    },
+    {
+      "name": "tatami",
+      "vertices": 3648,
+      "offset": 757968
+    },
+    {
+      "name": "cloth",
+      "vertices": 2928,
+      "offset": 772560
+    },
+    {
+      "name": "brass",
+      "vertices": 7260,
+      "offset": 784272
+    },
+    {
+      "name": "glow",
+      "vertices": 1008,
+      "offset": 813312
+    },
+    {
+      "name": "moss",
+      "vertices": 10572,
+      "offset": 817344
+    },
+    {
+      "name": "leaf",
+      "vertices": 18525,
+      "offset": 859632
+    }
+  ],
+  "statistics": {
+    "rays": 1985158,
+    "uniqueSamples": 80934,
+    "aoMin": 0.12986114234931956,
+    "aoMax": 1,
+    "aoMean": 0.6527706268937966,
+    "litSamples": 10381
+  },
+  "limitations": [
+    "Static geometry only; rotating door, enemies, players and water are not baked.",
+    "Direct lamp diffuse vertex bake plus local AO; no multi-bounce indirect-light lightmap."
+  ]
+}

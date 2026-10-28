@@ -1,0 +1,45 @@
+{
+  "results": [
+    {
+      "glowOff": true,
+      "lowMode": true,
+      "standardBloom": true,
+      "strengthZeroDisables": true,
+      "strengthBound": 0.55,
+      "bakeToggle": true,
+      "restoredMode": "bloom",
+      "standardPerf": {
+        "fps": 2,
+        "frameMs": 676.8337401350054,
+        "calls": 139,
+        "triangles": 218296,
+        "geometries": 150,
+        "textures": 87,
+        "memoryMB": 61,
+        "frames": 0,
+        "last": 36112.5,
+        "lastFrame": 36112.5
+      },
+      "lowPerf": {
+        "fps": 1,
+        "frameMs": 694.896128491041,
+        "calls": 124,
+        "triangles": 218281,
+        "geometries": 149,
+        "textures": 74,
+        "memoryMB": 62,
+        "frames": 0,
+        "last": 40356.699999999255,
+        "lastFrame": 40356.699999999255
+      },
+      "viewport": [
+        1024,
+        720
+      ],
+      "quality": "high",
+      "renderScale": 0.7,
+      "shadows": true
+    }
+  ],
+  "errors": []
+}

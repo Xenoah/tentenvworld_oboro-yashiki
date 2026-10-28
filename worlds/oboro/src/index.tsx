@@ -6,6 +6,7 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { Clickable, SpawnPad, SpatialSound, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
 import * as T from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { SoftLighting, DEFAULT_VISUALS, type VisualSettings } from './Lighting'
 import { Architecture, useMaterials, type Materials } from './Architecture'
 import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, command, distance, initialState, tick, type Command, type GameState, type V3 } from './game'
 
@@ -52,24 +53,22 @@ type Game=ReturnType<typeof useGame>
 export default function World(){return <><RigidBody type="fixed" colliders={false}><CuboidCollider args={[9,.1,3]} position={[0,-.1,12.5]}/></RigidBody><Suspense fallback={null}><Oboro/></Suspense></>}
 function Oboro(){
   const m=useMaterials(),game=useGame(),device=useDevice()
-  const [comfort,setComfort]=useState(true),[sound,setSound]=useState(false),[help,setHelp]=useState(false)
+  const [comfort,setComfort]=useState(true),[sound,setSound]=useState(false),[help,setHelp]=useState(false),[visuals,setVisuals]=useState<VisualSettings>(DEFAULT_VISUALS)
   return <>
     <color attach="background" args={['#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
-    <hemisphereLight args={['#b4cbd6','#4e3c28',1.35]}/>
-    <directionalLight position={[-12,22,10]} color="#c7daec" intensity={2.1} castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-27} shadow-camera-right={27} shadow-camera-top={30} shadow-camera-bottom={-28} shadow-camera-far={70} shadow-bias={-.0004} shadow-normalBias={.03}/>
-    <pointLight position={[0,3,11]} color="#ffc37a" intensity={20} distance={14} decay={2}/>
-    <pointLight position={[-13,2,0]} color="#ffbf75" intensity={14} distance={10} decay={2}/>
+    <hemisphereLight args={['#c0d5e4','#5b4230',1.0]}/><SoftLighting settings={visuals}/>
+    <directionalLight position={[-12,22,10]} color="#c7daec" intensity={1.7} castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-27} shadow-camera-right={27} shadow-camera-top={30} shadow-camera-bottom={-28} shadow-camera-far={70} shadow-bias={-.0004} shadow-normalBias={.025} shadow-radius={3}/>
     <pointLight position={[0,5,-20]} color="#889bff" intensity={16} distance={10} decay={2}/>
     <pointLight position={[-14,-.5,-18]} color="#4faeaa" intensity={12} distance={9} decay={2}/>
     <SpawnPad position={SPAWN} yaw={0}/>
-    <Architecture materials={m}/>
+    <Architecture materials={m} shading={visuals.shading}/>
     <Moon/><Water/><Dust/><ComfortCurtain enabled={comfort}/>
     <Board game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} materials={m}/>
     <Gimmicks game={game} m={m} comfort={comfort}/>
     <Mobility game={game} comfort={comfort}/>
     {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'}/>) }
     {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
-    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp}/>}
+    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals}/>}
   </>
 }
 function Button3D({text,position,onClick,material,width=1.1}:{text:string;position:V3;onClick:()=>void;material:T.Material;width?:number}){
@@ -217,9 +216,9 @@ function Water(){
 function Moon(){return <group><mesh position={[-18,32,-48]}><sphereGeometry args={[2.5,24,16]}/><meshBasicMaterial color="#e9e5ce"/></mesh><mesh position={[-18,32,-48]}><sphereGeometry args={[3.3,24,16]}/><meshBasicMaterial color="#b8d5dc" transparent opacity={.06} depthWrite={false}/></mesh></group>}
 function Dust(){const ref=useRef<T.Points>(null),positions=useMemo(()=>{const a=new Float32Array(180*3);for(let i=0;i<180;i++){a[i*3]=Math.sin(i*237.1)*20;a[i*3+1]=.4+(i%34)*.16;a[i*3+2]=Math.cos(i*87.2)*19-3}return a},[]);useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=clock.elapsedTime*.003});return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]}/></bufferGeometry><pointsMaterial size={.025} color="#edcf8c" transparent opacity={.45} depthWrite={false}/></points>}
 
-function Hud({game:g,comfort,setComfort,sound,setSound,help,setHelp}: {game:Game;comfort:boolean;setComfort:(v:boolean)=>void;sound:boolean;setSound:(v:boolean)=>void;help:boolean;setHelp:(v:boolean)=>void}){
+function Hud({game:g,comfort,setComfort,sound,setSound,help,setHelp,visuals,setVisuals}: {game:Game;comfort:boolean;setComfort:(v:boolean)=>void;sound:boolean;setSound:(v:boolean)=>void;help:boolean;setHelp:(v:boolean)=>void;visuals:VisualSettings;setVisuals:(v:VisualSettings)=>void}){
   const rt=useRuntime(),s=g.state,secs=Math.max(0,DIFFICULTIES[s.difficulty].limit-Math.floor((s.updatedAt-s.startedAt)/1000)),atLobby=useRef(true)
-  const [near,setNear]=useState(true)
+  const [near,setNear]=useState(true),[visualOpen,setVisualOpen]=useState(false)
   useFrame(()=>{const p=rt.pose(rt.self().peerId)?.position;const n=!!p&&distance(p,ACTIONS.start)<6.4;if(n!==atLobby.current){atLobby.current=n;setNear(n)}})
   const panel:React.CSSProperties={background:'linear-gradient(135deg,rgba(13,29,31,.95),rgba(18,35,36,.88))',border:'1px solid #ad946052',boxShadow:'0 14px 45px #0005',backdropFilter:'blur(12px)'}
   const button:React.CSSProperties={border:'1px solid #9f89585c',borderRadius:3,background:'#233c3c',color:'#e6dcc5',padding:'9px 13px',cursor:'pointer',fontFamily:'inherit',fontSize:12}
@@ -240,7 +239,8 @@ function Hud({game:g,comfort,setComfort,sound,setSound,help,setHelp}: {game:Game
       <p style={{fontSize:10,color:'#8da69c',margin:'14px 0 0'}}>1人でも、4人でも。鍵は全員で共有されます。</p>
     </div>}
     <div style={{position:'absolute',bottom:73,left:'50%',transform:'translateX(-50%)',...panel,padding:'11px 20px',fontSize:12,textAlign:'center',maxWidth:'70vw',whiteSpace:'normal',color:'#d4d6bc'}} data-testid="message">{g.message}</div>
-    <div className="oboro-toolbar" style={{position:'absolute',bottom:20,left:28,right:28,display:'flex',gap:8,justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:11,color:'#bccabf',textShadow:'0 2px 8px #000'}}>WASD 移動　/　マウス 視点　/　E・クリック 調べる　/　Space 上昇　Q 下降</div><div style={{display:'flex',gap:7,pointerEvents:'auto'}}><button style={button} onClick={()=>setComfort(!comfort)}>{comfort?'◉ 快適移動':'○ 自由移動'}</button><button style={button} onClick={()=>setSound(!sound)}>{sound?'音：入':'音：切'}</button><button style={button} onClick={()=>setHelp(!help)}>手引き</button>{s.phase==='running'&&<button style={button} onClick={()=>g.send('recover')}>玄関へ帰還</button>}</div></div>
+    <div className="oboro-toolbar" style={{position:'absolute',bottom:20,left:28,right:28,display:'flex',gap:8,justifyContent:'space-between',alignItems:'center'}}><div style={{fontSize:11,color:'#bccabf',textShadow:'0 2px 8px #000'}}>WASD 移動　/　マウス 視点　/　E・クリック 調べる　/　Space 上昇　Q 下降</div><div style={{display:'flex',gap:7,pointerEvents:'auto'}}><button style={button} onClick={()=>setComfort(!comfort)}>{comfort?'◉ 快適移動':'○ 自由移動'}</button><button style={button} onClick={()=>setSound(!sound)}>{sound?'音：入':'音：切'}</button><button style={button} onClick={()=>setHelp(!help)}>手引き</button><button data-testid="visual-settings" style={button} onClick={()=>setVisualOpen(!visualOpen)}>映像</button>{s.phase==='running'&&<button style={button} onClick={()=>g.send('recover')}>玄関へ帰還</button>}</div></div>
+    {visualOpen&&<div className="oboro-help" data-testid="visual-panel" style={{...panel,position:'absolute',right:28,top:230,width:300,padding:22,pointerEvents:'auto',fontSize:12,lineHeight:1.9,zIndex:5}}><strong>柔らかな光</strong><div style={{display:'flex',gap:6,margin:'12px 0'}}>{([['auto','標準'],['low','軽量'],['off','切']] as const).map(([mode,label])=><button data-testid={`glow-${mode}`} key={mode} style={{...button,background:visuals.mode===mode?'#8a6e43':'#233c3c'}} onClick={()=>setVisuals({...visuals,mode})}>{label}</button>)}</div><label>光のにじみ　{Math.round(visuals.glow*100)}%<input data-testid="glow-strength" aria-label="光のにじみ" type="range" min="0" max=".55" step=".01" value={visuals.glow} onChange={e=>setVisuals({...visuals,glow:Number(e.target.value)})} style={{width:'100%'}}/></label><label style={{display:'block',marginTop:12}}><input data-testid="baked-shading" type="checkbox" checked={visuals.shading} onChange={e=>setVisuals({...visuals,shading:e.target.checked})}/> 細部の陰影と灯り</label><p style={{color:'#adbcaf',marginBottom:0}}>軽量設定は灯りの周囲だけを柔らかくします。携帯端末・低解像度では自動で軽量表示。VRではにじみを無効にします。難易度には影響しません。</p></div>}
     {help&&<div className="oboro-help" style={{...panel,position:'absolute',right:28,top:230,width:360,maxHeight:'55vh',overflow:'auto',padding:24,pointerEvents:'auto',fontSize:12,lineHeight:1.9}}><strong style={{color:'#dfc18a'}}>探索の手引き</strong><p>画面をクリックして視点操作。Esc でカーソルを戻します。照準を合わせて E またはクリック。VR はレイとトリガー。</p>{KEYS.map(k=><p key={k.id}>{k.hint}</p>)}<p>中庭の忍者は攻撃前に構えます。石や部屋に隠れ、距離を取ってください。捕まると全員敗北。帰還は -150 点。快適移動は難易度と無関係です。</p><p>泳ぎ・浮遊：向いた方向へ WASD、Space 上昇、Q 下降。VR は上を向いて前進またはトリガー上昇。壁／天井は低速移動。快適モードは水平視点とワープ足場。</p><p style={{color:'#8ca69b'}}>コード・素材：AGPL-3.0-only / TenTenV contributors + Oboro contributors。保証なし。対応ソースと導入手順を配布物に同梱。</p></div>}
   </div></Html>
 }

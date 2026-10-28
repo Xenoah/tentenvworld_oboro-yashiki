@@ -21,3 +21,8 @@
 公式package-lockを元に、この独立workspaceの構成でnpm lockを更新。three.js / React / React Three Fiber / Rapier / Vite等の名称・バージョンとライセンスは固定lockと各npmパッケージのLICENSEを参照。生成スクリプトの再実行だけにPython, NumPy, Pillowを使う。通常の実行にPythonは不要。
 
 追加課金・契約・認証情報は不使用。外部の素材URL、通信許可ドメイン、静的検査の緩和は追加していない。
+
+
+## v1.1 追加
+
+建築AO・灯籠の直接拡散光の頂点データ、月夜の反射環境、放射状ハローは本プロジェクトで生成しAGPL-3.0-onlyで提供します。外部HDRや写真素材は追加していません。ベイクの交差判定はthree-mesh-bvh 0.8.3（MIT、Garrett Johnson）を使用。グローとFXAAは既存Three.js addons（MIT）を利用し、配布のTHIRD_PARTY_LICENSES.txtにも帰属とライセンスを含めます。詳細はLIGHTING.mdとbake-report.json。

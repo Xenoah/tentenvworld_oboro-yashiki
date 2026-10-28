@@ -2,7 +2,7 @@
   "name": "oboro-ninja-yashiki",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -17,22 +17,26 @@
     "dev": "node scripts/dev.mjs",
     "dev:client": "npm run dev -w @tentenv/client",
     "dev:world": "npm run dev -w @oboro/world",
-    "build": "npm run build -w @oboro/world",
+    "build": "npm run check:bake && npm run build -w @oboro/world",
     "pack": "npm run pack -w @oboro/world",
     "build:client": "npm run build -w @tentenv/client",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "node tests/e2e.mjs",
     "build:all": "npm run build && npm run pack && npm run build:client",
-    "start": "node scripts/serve.mjs"
+    "start": "node scripts/serve.mjs",
+    "bake": "node --import tsx scripts/bake-lighting.ts",
+    "check:bake": "node --import tsx scripts/bake-lighting.ts --check",
+    "test:lighting": "node tests/lighting.mjs"
   },
   "engines": {
     "node": ">=22.13"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "playwright-core": "^1.64.1",
-    "tsx": "^4.23.0",
-    "@types/node": "^24.0.0"
+    "three-mesh-bvh": "0.8.3",
+    "tsx": "^4.23.0"
   },
   "overrides": {
     "@iwer/devui": {

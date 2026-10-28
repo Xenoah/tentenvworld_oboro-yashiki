@@ -11,6 +11,10 @@ const out=resolve(process.argv[2]||join(root,'releases-out'));mkdirSync(out,{rec
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()
 const build=JSON.parse(readFileSync(join(root,'dist-pages/build.json'),'utf8'))
 if(build.commit!==commit)throw Error('Run build:pages at the release commit first')
+if(build.dirty!==false)throw Error('Release assets require a clean committed source build')
+const evidence=resolve(process.env.OBORO_RELEASE_EVIDENCE_DIR||join(root,'evidence/pages'))
+const screenshots=JSON.parse(readFileSync(join(evidence,'screenshots.json'),'utf8'))
+if(screenshots.commit!==commit||screenshots.version!==version||screenshots.buildDirty!==false)throw Error('Screenshots must come from this exact clean release build')
 const assets=[]
 for(const [from,to]of [
  ['dist-pages/oboro-source.zip',`oboro-v${version}-source.zip`],
@@ -19,6 +23,13 @@ for(const [from,to]of [
  ['dist-pages/THIRD_PARTY_LICENSES.txt','THIRD_PARTY_LICENSES.txt'],
  ['docs/RELEASE_NOTES.md','RELEASE_NOTES.md'],
 ]){cpSync(join(root,from),join(out,to));assets.push(to)}
+const releaseCaptures=[]
+for(const [from,scene]of [['after-courtyard.png','courtyard'],['after-study.png','study'],['play-courtyard.png','play']]){
+ const name=`oboro-v${version}-${scene}.png`;cpSync(join(evidence,from),join(out,name));assets.push(name)
+ const capture=screenshots.captures.find(c=>c.file===from);if(!capture)throw Error(`Missing screenshot provenance: ${from}`)
+ releaseCaptures.push({...capture,file:name,sourceCapture:from,sha256:createHash('sha256').update(readFileSync(join(out,name))).digest('hex')})
+}
+writeFileSync(join(out,'SCREENSHOTS.json'),JSON.stringify({...screenshots,captures:releaseCaptures},null,2)+'\n');assets.push('SCREENSHOTS.json')
 const files={}
 const walk=dir=>{for(const e of readdirSync(dir,{withFileTypes:true})){const p=join(dir,e.name);if(e.isDirectory())walk(p);else files[relative(join(root,'dist-pages'),p)]=[readFileSync(p),{level:/\.(png|webp|zip|ttvw|vrm|woff2)$/i.test(e.name)?0:6}]}}
 walk(join(root,'dist-pages'));const demo=`oboro-v${version}-pages.zip`;writeFileSync(join(out,demo),zipSync(files));assets.push(demo)

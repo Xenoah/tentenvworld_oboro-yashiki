@@ -1,5 +1,15 @@
 # 検証結果
 
+## v1.1.0 照明の回帰検証（2026-10-28）
+
+型検査、13単体テスト、保存ベイクの形状／生成器／出力SHA検査、公式CLIビルドが通過。ローカルのPagesサブパスで実Chromiumを使い、一周の五印・特殊移動・4タブ接続維持・重複取得・途中参加・ホスト退出・勝敗・再開始の全回帰を通過した。モバイル相当のUI操作とWebGL無効時の案内も通過。映像試験では標準Bloom／軽量Halo／OFF、強度0と上限0.55、ベイク陰影のOFF／ONを実UIで操作し、console/page errorとHTTPエラーは0だった。
+
+1024×720、high、renderScale 0.7、影ONの書院視点では、標準表示139 calls / 218,296 triangles / 87 textures、軽量表示124 calls / 218,281 triangles / 74 textures。計測は全postprocessパスを含む1フレームの標本。SwiftShaderで約1〜2 FPSのため、実GPUの性能比較ではない。中庭と書院のRGB全チャンネルが250以上の画素割合は0%だったが、これだけで全視点の色飛びを保証しない。視認性は実画像でも点検した。
+
+比較用のローカル画像と測定は `evidence/lighting/`。配布用の3枚は**Release CIが最終コミットの本番ビルドから別途撮影**し、`SCREENSHOTS.json` のSHA・version・視点・設定と照合して梱包する。dirtyなソースのビルドや別コミットの画像はrelease packagingが拒否する。中庭・書院はHUDを隠した視覚比較、play画像はHUDを表示した実プレイ画面。いずれも実Chromium、CI内のローカル静的URLであり、公開URLでの撮影ではない。
+
+ベイクは933,732 bytesの頂点RGBA、80,934サンプル点、1,985,158 rays。局所AOと静的灯籠の直接拡散光に限定し、多重反射GIとはしない。XRのにじみOFF分岐は実装済みだがVR実機では未検証。公開URLの接続制約、別端末マルチ・VC未検証も継続する。
+
 ## Pages構成の追加検証（2026-10-28）
 
 `npm run build:pages` の本番クライアントを `/tentenvworld_oboro-yashiki/` サブパスで静的配信し、`npm run test:pages` の実Chromium試験を実行した。公開GitHub Pagesではなくローカルの同一構造である。入口ページから開始、再読込み、全五印、四タブ同期、途中参加、重複鍵、ホスト退出、水中、浮遊、壁、天井、自由跳躍で高台着地、敵の予兆から捕縛、勝敗共有、再開始が通過。主要導線のconsole/page errorとasset 404は0。試験のテレポート・Clickable・時計・敵配置fixtureは下記と同じ。
@@ -10,7 +20,7 @@
 
 追加証跡は `evidence/pages/`（ローカル生成、CI実行時はbrowser-validation artifact）に保存。4タブの一標本は106 calls / 393,846 triangles / 95 textures / heap 88 MB、SwiftShaderの表示FPSは1。単独高画質の一標本は185 calls / 164,438 triangles / 73 textures / heap 129 MB。視点・人数・影・ミラーパスが異なるため、旧標本とのFPS改善率は算出しない。小物geometry、水紋draw call、影の解像度、二重ミラー描画を削減したが、実GPU/Questの性能保証はしない。
 
-GitHub Actionsのworkflowは用意したが、repo作成前のAPI照会がForbiddenで終了したため、リモートCIと公開URLの外部ブラウザ検証は未実施。公開済みとはしていない。
+初回ローカル検証時点ではrepo作成前のAPI照会がForbiddenで終了した。その後、正規UIでrepo/Pages設定を行い、v1.0.1のCI・deploy（run 40664108026）とRelease（run 40665484321）が成功した。配布8ファイルは公開Releaseから取得してハッシュを照合済み。公開URLの3D通し試験には末尾の環境制約が残る。
 
 2026-10-28、Linux / Node.js 24.19.0 / Chromium、GPUはSwiftShader（ソフトウェア描画）。
 
@@ -18,7 +28,7 @@ GitHub Actionsのworkflowは用意したが、repo作成前のAPI照会がForbid
 
 - `npm ci` 相当のクリーンインストール（固定lock・整合性検証あり）
 - `npm run typecheck`: SDK / protocol / client / world 全て通過
-- `npm test`: **12テスト通過**。ソロ解法、重複鍵、距離/phase/run/hostの検証、順番操作、途中参加、ホスト移譲、終端競合、攻撃予兆と遮蔽、復帰、人数上限、難易度、区画間ワープと移動リースの回帰
+- `npm test`: **13テスト通過**。ソロ解法、重複鍵、距離/phase/run/hostの検証、順番操作、途中参加、ホスト移譲、終端競合、攻撃予兆と遮蔽、復帰、人数上限、難易度、区画間ワープと移動リース、描画停止時の通信猶予の回帰
 - `npm run build:all`: 公式ワールドCLIのビルド・コード静的検査・`.ttvw`梱包と公式クライアント本番ビルド
 - **4つの実Chromiumタブ**の同時入場と相互認識、キー/扉/時間/難易度の途中参加snapshot、同時鍵取得の一回加点、距離外操作拒否
 - ホストタブを閉じて残り3タブへ権威を移譲、鍵とrunを保持
