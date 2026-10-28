@@ -293,6 +293,10 @@ export class WorldEngine {
       remove: async (key: string) => (api ? api.storageDel(worldId, scope, key) : localKv(worldId, scope).remove(key)),
     })
     const rt: WorldRuntime = {
+      voiceEffects: {
+        setEnvironment: (peerId,profile) => { if(s.members.has(peerId))this.voice.setEnvironment(peerId,profile) },
+        activePeers: () => this.voice.activePeers(),
+      },
       locomotion: {
         version: 1,
         set: (profile) => {

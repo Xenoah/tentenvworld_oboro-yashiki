@@ -182,7 +182,15 @@ export interface LocomotionProfile {
   /** Surface camera rotation is opt-in desktop only; VR always keeps its horizon. */
   rotateView?: boolean
 }
+/** Oboro optional receive-audio extension, implemented by the bundled client. */
+export type VoiceEnvironment = 'outdoor' | 'room' | 'narrow' | 'underwater'
+export interface VoiceEnvironmentProfile { preset: VoiceEnvironment; lightweight?: boolean }
 export interface WorldRuntime {
+  voiceEffects?: {
+    setEnvironment: (peerId: string, profile: VoiceEnvironmentProfile | null) => void
+    activePeers: () => string[]
+  }
+
   locomotion?: {
     version: 1
     set: (profile: LocomotionProfile | null) => void

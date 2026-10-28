@@ -4,6 +4,7 @@
 // - 声の大きさを測って、話しているかの表示と口の動き（リップシンク）に使う
 import { AudioListener, PositionalAudio } from 'three'
 import { settings } from '../state/settings'
+import { VoiceAcoustics, VOICE_PRESETS, type VoiceEnvironmentProfile } from './voiceAcoustics'
 
 export interface VoiceLevel {
   /** 0〜1 の音量 */
@@ -68,6 +69,7 @@ interface Remote {
   audio: PositionalAudio
   meter: LevelMeter
   gain: number
+  acoustics: VoiceAcoustics | null
 }
 
 export class VoiceManager {
@@ -80,6 +82,7 @@ export class VoiceManager {
   private remotes = new Map<string, Remote>()
   private gains = new Map<string, number>()
   private worldGains = new Map<string, number>()
+  private environments = new Map<string, VoiceEnvironmentProfile>()
   private silenced = new Set<string>()
   muted = false
   /** Push-to-Talk のキーを押している間 */
@@ -188,8 +191,9 @@ export class VoiceManager {
     // 距離で小さくなる前の音で、話しているかを測る
     const src = (audio as unknown as { source: AudioNode }).source
     src?.connect(analyser)
-    const r: Remote = { stream, el, audio, meter: new LevelMeter(analyser), gain: 1 }
+    const r: Remote = { stream, el, audio, meter: new LevelMeter(analyser), gain: 1, acoustics: null }
     this.remotes.set(peerId, r)
+    const environment=this.environments.get(peerId);if(environment)this.setEnvironment(peerId,environment)
     this.applyGain(peerId)
     return audio
   }
@@ -203,9 +207,24 @@ export class VoiceManager {
     } catch {
       // すでに外れている
     }
+    r.acoustics?.dispose()
+    ;(r.audio as unknown as {source?:AudioNode}).source?.disconnect()
+    r.meter.analyser.disconnect()
     r.audio.removeFromParent()
     this.remotes.delete(peerId)
   }
+
+  /** Bounded preset processing on the actual incoming MediaStream, before HRTF/volume. */
+  setEnvironment(peerId:string,profile:VoiceEnvironmentProfile|null){
+    if(profile&&!Object.hasOwn(VOICE_PRESETS,profile.preset))return
+    if(profile){if(this.environments.size>=32&&!this.environments.has(peerId))return;this.environments.set(peerId,{preset:profile.preset,lightweight:!!profile.lightweight})}
+    else this.environments.delete(peerId)
+    const r=this.remotes.get(peerId);if(!r)return
+    if(!profile){r.audio.setFilters([]);r.acoustics?.dispose();r.acoustics=null;return}
+    if(!r.acoustics){r.acoustics=new VoiceAcoustics(this.listener.context);r.audio.setFilters(r.acoustics.filters)}
+    r.acoustics.set(profile)
+  }
+  activePeers(){return [...this.remotes.keys()]}
 
   remoteAudio(peerId: string) {
     return this.remotes.get(peerId)?.audio ?? null
@@ -257,6 +276,7 @@ export class VoiceManager {
   dispose() {
     this.stopMic()
     for (const id of [...this.remotes.keys()]) this.removeRemote(id)
+    this.environments.clear()
   }
 }
 
