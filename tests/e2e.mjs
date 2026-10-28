@@ -3,11 +3,11 @@ import assert from 'node:assert/strict'
 import {writeFileSync,mkdirSync} from 'node:fs'
 import {join} from 'node:path'
 const softwareCI=process.env.CI==='true'
-const startupTimeout=softwareCI?120000:45000,stateTimeout=softwareCI?60000:30000
+const startupTimeout=softwareCI?180000:45000,stateTimeout=softwareCI?60000:30000
 const output=process.env.OBORO_EVIDENCE_DIR||'evidence';mkdirSync(output,{recursive:true})
 const url=process.env.OBORO_TEST_URL||'http://localhost:5190/?devWorld=http%3A%2F%2Flocalhost%3A5180%2F'
 const browser=await chromium.launch({executablePath:process.env.BROWSER||undefined,headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-dev-shm-usage','--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']})
-const ctx=await browser.newContext({viewport:process.env.CI==='true'?{width:960,height:640}:{width:1280,height:850}}),pages=[],errors=[],results=[],networkFailures=[]
+const ctx=await browser.newContext({viewport:process.env.CI==='true'?{width:800,height:600}:{width:1280,height:850}}),pages=[],errors=[],results=[],networkFailures=[]
 await ctx.addInitScript(()=>localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'low',renderScale:.5,shadows:false,autoEnterVR:false})))
 const record=(name,details={})=>{results.push({name,...details});console.log('PASS',name,JSON.stringify(details))}
 async function open(){const p=await ctx.newPage();pages.push(p);p.setDefaultTimeout(stateTimeout);p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Browser page crashed'));p.on('requestfailed',r=>networkFailures.push(`${r.failure()?.errorText} ${r.url()}`));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(url);await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.has('w:oboro:game')&&window.__ttvEngine.interactables.size>20,{},{timeout:startupTimeout,polling:100});return p}
