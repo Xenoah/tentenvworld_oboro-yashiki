@@ -1,0 +1,6 @@
+import {chromium} from 'playwright-core'
+const b=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-background-timer-throttling','--disable-renderer-backgrounding']});const c=await b.newContext({viewport:{width:640,height:480}});await c.addInitScript(()=>localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'low',renderScale:.3,shadows:false,autoEnterVR:false})));const pages=[];
+for(let i=0;i<4;i++){const p=await c.newPage();p.on('console',m=>{if(m.type()==='error')console.log(i,m.text())});pages.push(p);await p.goto('http://localhost:5190/?devWorld=http%3A%2F%2Flocalhost%3A5180%2F');await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.has('w:oboro:game'),null,{timeout:45000});console.log('opened',i);}
+await new Promise(r=>setTimeout(r,5000));
+for(let i=0;i<4;i++){console.log(i,await pages[i].evaluate(()=>{const e=window.__ttvEngine;return {self:e.session.selfId,host:e.session.hostId(),tpeers:e.session.t.peers().map(p=>p.peerId),members:[...e.session.members].map(([id,m])=>({id,verified:m.verified,lastSeen:m.lastSeen})),perf:performance.now()}}))}
+await b.close()

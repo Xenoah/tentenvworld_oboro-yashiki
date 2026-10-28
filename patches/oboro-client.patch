@@ -1,0 +1,223 @@
+--- a/packages/sdk/src/runtime.ts
++++ b/packages/sdk/src/runtime.ts
+@@ -170,7 +170,23 @@
+   revision: () => number
+ }
+ 
++/** Oboro optional extension. A renewable local movement lease, not a network authority API. */
++export interface LocomotionProfile {
++  mode: 'float' | 'swim' | 'surface'
++  up?: Vector3Tuple
++  speed?: number
++  min: Vector3Tuple
++  max: Vector3Tuple
++  /** Surface camera rotation is opt-in desktop only; VR always keeps its horizon. */
++  rotateView?: boolean
++}
+ export interface WorldRuntime {
++  locomotion?: {
++    version: 1
++    set: (profile: LocomotionProfile | null) => void
++    impulse: (velocity: Vector3Tuple) => void
++  }
++
+   /** ワールドのファイルの基準 URL（末尾 /） */
+   baseUrl: string
+   world: { id: string; name: string }
+--- a/packages/sdk/src/index.ts
++++ b/packages/sdk/src/index.ts
+@@ -8,3 +8,5 @@
+ export * from './components/sound'
+ export { SDK_VERSION } from '@tentenv/protocol'
+ export type { SharedFileInfo, WorldInfo, WorldSummary, InstanceInfo } from '@tentenv/protocol'
++
++export type { LocomotionProfile } from './runtime'
+--- a/apps/client/src/world/engine.ts
++++ b/apps/client/src/world/engine.ts
+@@ -111,6 +111,8 @@
+   readonly runtime: WorldRuntime
+   private deviceEv = new Emitter<[DeviceKind]>()
+   /** 移動の処理（LocalPlayer）が受け取るテレポート */
++  movementLease: { profile: import('@tentenv/sdk').LocomotionProfile; expires: number } | null = null
++  movementImpulse: Vector3 | null = null
+   pendingTeleport: { position: Vector3; yaw?: number } | null = null
+   /** つかめる物を自分が持っているか（同時に 2 つまで） */
+   held: Record<'left' | 'right' | 'desktop', string | null> = { left: null, right: null, desktop: null }
+@@ -289,6 +291,15 @@
+       remove: async (key: string) => (api ? api.storageDel(worldId, scope, key) : localKv(worldId, scope).remove(key)),
+     })
+     const rt: WorldRuntime = {
++      locomotion: {
++        version: 1,
++        set: (profile) => {
++          if (!profile) { this.movementLease = null; return }
++          if (!['float','swim','surface'].includes(profile.mode) || ![...profile.min,...profile.max,...(profile.up ?? [0,1,0])].every(Number.isFinite)) return
++          this.movementLease = { profile: { ...profile, speed: Math.max(.3, Math.min(6, profile.speed ?? 2)) }, expires: performance.now() + 300 }
++        },
++        impulse: (v) => { if (v.every(Number.isFinite)) this.movementImpulse = new Vector3(...v).clampLength(0, 14) },
++      },
+       baseUrl: ctx.world.baseUrl,
+       world: { id: worldId, name: ctx.world.name },
+       instance: { id: ctx.instance.id, persistent: !!(ctx.instance as { persistent?: boolean }).persistent },
+--- a/apps/client/src/player/LocalPlayer.tsx
++++ b/apps/client/src/player/LocalPlayer.tsx
+@@ -16,6 +16,7 @@
+ import { pendingClick, pendingGrab, pendingTap, pendingUse, pendingWheel } from '../world/interaction'
+ import { playspaceOriginY, updatePlayspaceLift } from './playspaceLift'
+ import { vrStickSpeed } from './vrStickSpeed'
++import { applicableLease } from '../world/locomotionLease'
+ 
+ const RADIUS = 0.25
+ const STAND_HALF = 0.55
+@@ -101,6 +102,14 @@
+     const o = origin.current
+     if (!o) return
+     const S = st.current
++    const mobility = applicableLease(engine.movementLease, performance.now(), engine.pendingTeleport?.position.toArray())
++    const surfaceUp = new Vector3(...(mobility?.mode === 'surface' ? mobility.up ?? [0,1,0] : [0,1,0]) as [number,number,number]).normalize()
++    const surfaceQ = new Quaternion().setFromUnitVectors(UP, surfaceUp)
++    phys.cc.setUp(surfaceUp)
++    phys.body.setRotation(surfaceQ, true)
++    if (mobility) phys.cc.disableSnapToGround()
++    else if (!S.playspaceLift.active) phys.cc.enableSnapToGround(.35)
++
+     if (xr !== S.xrWas) {
+       S.xrWas = xr
+       engine.setDevice(xr ? 'vr' : /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop')
+@@ -117,6 +126,7 @@
+       engine.pendingTeleport = null
+       if (p.sitting) engine.stand()
+       p.position.copy(tp.position)
++      p.velocity.set(0, 0, 0)
+       phys.body.setTranslation(tp.position, true)
+       phys.body.setNextKinematicTranslation(tp.position)
+       S.vy = 0
+@@ -238,6 +248,12 @@
+     }
+     S.vy = Math.max(S.vy, -50)
+ 
++    if (engine.movementImpulse) {
++      const impulse = engine.movementImpulse; engine.movementImpulse = null
++      S.vy = impulse.y; p.velocity.x = impulse.x; p.velocity.z = impulse.z
++      p.grounded = false; p.jumping = true
++    }
++
+     // VR: 実際に歩いた分も体を動かす（頭の真下に体を置く）
+     let roomDelta = new Vector3()
+     let headLocal: { p: Vector3; q: Quaternion } | null = null
+@@ -275,6 +291,31 @@
+     }
+ 
+     const desired = new Vector3(p.velocity.x * dt + roomDelta.x, liftTargetY === null ? S.vy * dt : liftTargetY - p.position.y, p.velocity.z * dt + roomDelta.z)
++    if (mobility && !p.sitting) {
++      const speed = mobility.speed ?? 2
++      if (mobility.mode === 'surface') {
++        const tangent = new Vector3(mx * speed, 0, -my * speed).applyAxisAngle(UP, dirYaw).applyQuaternion(surfaceQ)
++        if ((!mobility.rotateView || xr) && Math.abs(surfaceUp.x) > .5) tangent.set(0, my*speed + f.up*speed, -mx*speed)
++        p.velocity.copy(tangent)
++        desired.copy(tangent.multiplyScalar(dt)).addScaledVector(surfaceUp, -.3 * dt)
++        S.vy = 0
++      } else {
++        const gaze = new Vector3(-Math.sin(dirYaw)*Math.cos(p.pitch), Math.sin(p.pitch), -Math.cos(dirYaw)*Math.cos(p.pitch))
++        const side = new Vector3(Math.cos(dirYaw), 0, -Math.sin(dirYaw))
++        const vertical = f.up || (f.jump ? 1 : 0) || (xr && xrInput.right.triggerHeld ? 1 : 0)
++        const goal = gaze.multiplyScalar(my*speed).addScaledVector(side,mx*speed)
++        goal.y += vertical*speed
++        // Zero-g retains momentum; water has drag and a very gentle buoyancy.
++        if (mobility.mode === 'swim') goal.y += .10
++        p.velocity.lerp(goal, 1 - Math.exp(-dt * (mobility.mode === 'swim' ? 3.5 : 1.8)))
++        desired.copy(p.velocity).multiplyScalar(dt); S.vy = p.velocity.y
++      }
++      // Bounds stop accidental ejection from special traversal chambers.
++      for (const [i, axis] of ['x','y','z'].entries()) {
++        const a = axis as 'x'|'y'|'z'
++        desired[a] = MathUtils.clamp(p.position[a]+desired[a], mobility.min[i], mobility.max[i])-p.position[a]
++      }
++    }
+     if (p.sitting) {
+       const seatP = new Vector3()
+       p.sitting.obj.updateWorldMatrix(true, false)
+@@ -329,6 +370,7 @@
+           o.position.set(p.position.x - hw.x, playspaceOriginY(p.position.y, seatedLift, S.playspaceLift, liftTargetY), p.position.z - hw.z)
+         }
+       }
++      if (mobility?.mode === 'surface') o.position.addScaledVector(surfaceUp, eye).addScaledVector(UP, -eye)
+       o.updateMatrixWorld(true)
+       // 頭（ワールド）
+       if (headLocal) {
+@@ -361,10 +403,12 @@
+       let eyeY = eye * crouchEye + s.desktopEyeOffset
+       if (p.sitting) eyeY = eye - avatarHipsAboveSeat(eye) + 0.02
+       if (p.sleep !== SleepPose.None) eyeY = 0.3
+-      const eyeP = p.position.clone().add(new Vector3(0, eyeY, 0))
++      const viewQ = mobility?.mode === 'surface' && mobility.rotateView ? surfaceQ : new Quaternion()
++      const eyeOffset = new Vector3(0, eyeY, 0).applyQuaternion(mobility?.mode === 'surface' ? surfaceQ : viewQ)
++      const eyeP = p.position.clone().add(eyeOffset)
+       if (p.sleep !== SleepPose.None) eyeP.add(new Vector3(-Math.sin(S.bodyYaw), 0, -Math.cos(S.bodyYaw)).multiplyScalar(-0.5))
+       _e.set(p.pitch, p.yaw, 0, 'YXZ')
+-      p.head.q.setFromEuler(_e)
++      p.head.q.setFromEuler(_e).premultiply(viewQ)
+       p.head.p.copy(eyeP)
+       {
+         if (p.thirdPerson) {
+--- a/apps/client/src/player/input.ts
++++ b/apps/client/src/player/input.ts
+@@ -159,7 +159,7 @@
+       f.moveX += (down('KeyD') || down('ArrowRight') ? 1 : 0) - (down('KeyA') || down('ArrowLeft') ? 1 : 0)
+       f.run = down('ShiftLeft') || down('ShiftRight')
+       f.jump = hit('Space')
+-      f.up = (down('Space') ? 1 : 0) - (down('ControlLeft') ? 1 : 0)
++      f.up = (down('Space') ? 1 : 0) - (down('ControlLeft') || down('KeyQ') ? 1 : 0)
+       f.crouchToggle = hit('KeyC')
+       f.proneToggle = hit('KeyZ')
+       f.grabToggle = hit('KeyG')
+@@ -174,7 +174,7 @@
+       const sens = 0.0022 * s.mouseSensitivity
+       f.lookYaw -= this.mouseDX * sens
+       f.lookPitch -= this.mouseDY * sens * (s.invertY ? -1 : 1)
+-      f.interact = this.clicked
++      f.interact = this.clicked || hit('KeyE')
+       f.interactHeld = this.mouseHeld
+       f.holdDistance = this.wheel
+     }
+--- a/apps/client/src/net/local.ts
++++ b/apps/client/src/net/local.ts
+@@ -17,6 +17,7 @@
+   private rEv = new Emitter<[string, unknown]>()
+   private uEv = new Emitter<[string, ArrayBuffer]>()
+   private peerEv = new Emitter<[{ kind: 'join' | 'leave' | 'link'; peerId: string }]>()
++  private discoveryTick = 0
+   private timer: ReturnType<typeof setInterval>
+ 
+   constructor(room: string, user: UserSummary) {
+@@ -27,6 +28,8 @@
+     this.post({ k: 'hello', from: this.self, reply: false })
+     this.timer = setInterval(() => {
+       this.post({ k: 'beat', from: this.selfId })
++      // Retry discovery after slow tab startup. Session hello still uses its normal validation.
++      if (++this.discoveryTick % 3 === 0) this.post({ k: 'hello', from: this.self, reply: false })
+       const now = Date.now()
+       for (const [id, p] of this.known) if (now - p.seen > 4000) this.drop(id)
+     }, 1000)
+@@ -49,8 +52,9 @@
+       if (!w.reply) this.post({ k: 'hello', from: this.self, reply: true })
+       if (isNew) {
+         this.peerEv.emit({ kind: 'join', peerId: w.from.peerId })
+-        this.peerEv.emit({ kind: 'link', peerId: w.from.peerId })
+       }
++      // A known descriptor does not imply the session handshake reached both sides.
++      this.peerEv.emit({ kind: 'link', peerId: w.from.peerId })
+       return
+     }
+     if (w.k === 'bye') return this.drop(w.from)
+--- /dev/null
++++ b/apps/client/src/world/locomotionLease.ts
+@@ -0,0 +1,8 @@
++import type { LocomotionProfile } from '@tentenv/sdk'
++/** Renewed leases may overlap a pending teleport; only use a lease valid at its destination. */
++export function applicableLease(lease: {profile:LocomotionProfile;expires:number}|null, now:number, destination?:number[]): LocomotionProfile|null {
++  if(!lease || lease.expires<=now)return null
++  const p=lease.profile
++  if(destination && !destination.every((v,i)=>v>=p.min[i]-.15&&v<=p.max[i]+.15))return null
++  return p
++}

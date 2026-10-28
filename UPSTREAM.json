@@ -1,0 +1,26 @@
+{
+  "url": "https://github.com/KinuX2/TenTenV",
+  "commit": "97e9bc120f4f977e0a3cfdb79379391e236f25e2",
+  "license": "AGPL-3.0-only",
+  "copied": [
+    "apps/client",
+    "packages/sdk",
+    "packages/protocol",
+    "worlds/template -> worlds/oboro",
+    "LICENSE",
+    "tsconfig.base.json",
+    "docs/SDK.md",
+    "docs/PROTOCOL.md",
+    "docs/THIRD_PARTY.md"
+  ],
+  "changesToOfficialComponents": [
+    "packages/sdk/src/runtime.ts",
+    "packages/sdk/src/index.ts",
+    "apps/client/src/world/engine.ts",
+    "apps/client/src/player/LocalPlayer.tsx",
+    "apps/client/src/player/input.ts",
+    "apps/client/src/net/local.ts",
+    "apps/client/src/world/locomotionLease.ts"
+  ],
+  "noUpstreamPushOrPR": true
+}

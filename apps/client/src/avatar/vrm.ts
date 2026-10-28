@@ -1,0 +1,260 @@
+// VRM（0.x / 1.0）の読み込み。正規化された骨・表情・視線・揺れもの・一人称の設定を共通の形にする
+import { VRMLoaderPlugin, VRMSpringBoneCollider, VRMSpringBoneColliderShapeSphere, VRMUtils, type VRM, type VRMSpringBoneColliderGroup } from '@pixiv/three-vrm'
+import { Box3, Mesh, Object3D, Vector3, type BufferGeometry, type Material, type SkinnedMesh } from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { LAYERS } from '@tentenv/sdk'
+import { fetchVerified } from '../world/assetCache'
+import { BONES, type AvatarModel, type BoneName } from './types'
+
+const loader = new GLTFLoader()
+loader.register((parser) => new VRMLoaderPlugin(parser, { autoUpdateHumanBones: true }))
+
+// The library's auto first-person mesh removes faces weighted to the head, but
+// neck-weighted faces can still fill the view when the player looks down.
+const removeNeckFromFirstPerson = (scene: Object3D, neck: Object3D | null) => {
+  if (!neck) return
+  scene.traverse((object) => {
+    const mesh = object as SkinnedMesh
+    if (!mesh.isSkinnedMesh || !mesh.name.endsWith('(erase)') || !mesh.layers.isEnabled(LAYERS.FIRST_PERSON_ONLY)) return
+    const neckIndex = mesh.skeleton.bones.findIndex((bone) => bone === neck)
+    if (neckIndex < 0) return
+    const geometry: BufferGeometry = mesh.geometry
+    const index = geometry.getIndex()
+    const skinIndex = geometry.getAttribute('skinIndex')
+    const skinWeight = geometry.getAttribute('skinWeight')
+    if (!index || !skinIndex || !skinWeight) return
+    const touchesNeck = (vertex: number) => {
+      for (let i = 0; i < 4; i++) {
+        if (skinIndex.getComponent(vertex, i) === neckIndex && skinWeight.getComponent(vertex, i) > 0.01) return true
+      }
+      return false
+    }
+    const kept: number[] = []
+    const prefix = [0]
+    for (let i = 0; i + 2 < index.count; i += 3) {
+      const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2)
+      if (!touchesNeck(a) && !touchesNeck(b) && !touchesNeck(c)) kept.push(a, b, c)
+      prefix.push(kept.length)
+    }
+    // Material groups may overlap: some VRMs draw the same face with two
+    // materials. Remap their ranges without adding the triangles twice.
+    const groups = geometry.groups.slice()
+    geometry.clearGroups()
+    for (const group of groups) {
+      const start = prefix[Math.min(prefix.length - 1, Math.floor(group.start / 3))]
+      const end = prefix[Math.min(prefix.length - 1, Math.floor((group.start + group.count) / 3))]
+      if (end > start) geometry.addGroup(start, end - start, group.materialIndex)
+    }
+    geometry.setIndex(kept)
+  })
+}
+
+/** 自動処理で残った衣服・装飾のうち、視点に重なる面だけを一人称側から除く。 */
+const removeNearEyeFromFirstPerson = (scene: Object3D, eye: Vector3, radius: number) => {
+  const candidates: SkinnedMesh[] = []
+  scene.updateMatrixWorld(true)
+  scene.traverse((object) => {
+    const mesh = object as SkinnedMesh
+    if (mesh.isSkinnedMesh && mesh.layers.isEnabled(LAYERS.FIRST_PERSON_ONLY) && mesh.layers.isEnabled(LAYERS.THIRD_PERSON_ONLY)) candidates.push(mesh)
+  })
+  const radiusSq = radius * radius
+  for (const mesh of candidates) {
+    const geometry = mesh.geometry
+    const index = geometry.getIndex()
+    const parent = mesh.parent
+    if (!index || !parent) continue
+    const near = new Map<number, boolean>()
+    const point = new Vector3()
+    const isNear = (vertex: number) => {
+      const cached = near.get(vertex)
+      if (cached !== undefined) return cached
+      mesh.getVertexPosition(vertex, point)
+      mesh.localToWorld(point)
+      const result = point.distanceToSquared(eye) < radiusSq
+      near.set(vertex, result)
+      return result
+    }
+    const kept: number[] = []
+    const prefix = [0]
+    for (let i = 0; i + 2 < index.count; i += 3) {
+      const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2)
+      if (!isNear(a) && !isNear(b) && !isNear(c)) kept.push(a, b, c)
+      prefix.push(kept.length)
+    }
+    if (kept.length === index.count) continue
+    // 元の服は鏡に残し、切り抜いた複製だけを自分の視点で描く。
+    mesh.layers.set(LAYERS.THIRD_PERSON_ONLY)
+    if (!kept.length) continue
+    const firstPerson = mesh.clone(false)
+    firstPerson.name = `${mesh.name}(first-person)`
+    firstPerson.geometry = geometry.clone()
+    firstPerson.layers.set(LAYERS.FIRST_PERSON_ONLY)
+    firstPerson.frustumCulled = false
+    const groups = geometry.groups.slice()
+    firstPerson.geometry.clearGroups()
+    for (const group of groups) {
+      const start = prefix[Math.min(prefix.length - 1, Math.floor(group.start / 3))]
+      const end = prefix[Math.min(prefix.length - 1, Math.floor((group.start + group.count) / 3))]
+      if (end > start) firstPerson.geometry.addGroup(start, end - start, group.materialIndex)
+    }
+    firstPerson.geometry.setIndex(kept)
+    parent.add(firstPerson)
+  }
+}
+
+/** 重すぎるアバターの目安（これを超えると、相手には標準アバターで出す） */
+export const AVATAR_LIMITS = { triangles: 150000, materials: 64, bones: 600, bytes: 100 * 1024 * 1024 }
+
+export const parseVrm = async (buf: ArrayBuffer): Promise<VRM> => {
+  const gltf = await loader.parseAsync(buf, '')
+  const vrm = gltf.userData.vrm as VRM | undefined
+  if (!vrm) throw new Error('VRM ではありません')
+  VRMUtils.removeUnnecessaryVertices(gltf.scene)
+  VRMUtils.combineSkeletons(gltf.scene)
+  VRMUtils.rotateVRM0(vrm)
+  return vrm
+}
+
+export const loadVrmAvatar = async (url: string, sha256: string | undefined, onProgress?: (r: number) => void): Promise<AvatarModel> => {
+  const buf = await fetchVerified(url, sha256, onProgress)
+  if (buf.byteLength > AVATAR_LIMITS.bytes) throw new Error('アバターのファイルが大きすぎます')
+  return wrapVrm(await parseVrm(buf))
+}
+
+export const wrapVrm = (vrm: VRM): AvatarModel => {
+  const root = new Object3D()
+  root.name = 'TTV_VrmAvatar'
+  root.add(vrm.scene)
+  const bones: Partial<Record<BoneName, Object3D>> = {}
+  for (const name of BONES) {
+    const n = vrm.humanoid.getNormalizedBoneNode(name as never)
+    if (n) bones[name] = n
+  }
+  vrm.scene.updateMatrixWorld(true)
+  const rest: Partial<Record<BoneName, [number, number, number]>> = {}
+  const v = new Vector3()
+  for (const [name, b] of Object.entries(bones) as [BoneName, Object3D][]) {
+    b.getWorldPosition(v)
+    rest[name] = [v.x, v.y, v.z]
+  }
+  // 目の位置: 視線の設定があればそれ、なければ目の骨、それもなければ頭の少し前
+  const head = bones.head
+  const eyeOffset: [number, number, number] = [0, 0.06, 0.08]
+  const lo = vrm.lookAt?.offsetFromHeadBone
+  if (lo && lo.lengthSq() > 1e-6) eyeOffset.splice(0, 3, lo.x, lo.y, lo.z)
+  else if (bones.leftEye && bones.rightEye && head) {
+    const a = new Vector3(...rest.leftEye!).add(new Vector3(...rest.rightEye!)).multiplyScalar(0.5)
+    head.worldToLocal(a)
+    eyeOffset.splice(0, 3, a.x, a.y, a.z)
+  }
+  const headY = rest.head?.[1] ?? 1.4
+  const box = new Box3().setFromObject(vrm.scene)
+  const eyeHeight = headY + eyeOffset[1]
+
+  // 鏡にも映るよう、アバターの物はアバターのレイヤーへ
+  let triangles = 0
+  const mats = new Set<Material>()
+  vrm.scene.traverse((o) => {
+    const m = o as Mesh
+    if (m.isMesh) {
+      m.layers.set(LAYERS.AVATAR)
+      m.castShadow = true
+      m.frustumCulled = false
+      const g = m.geometry
+      triangles += g.index ? g.index.count / 3 : g.attributes.position.count / 3
+      ;(Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => mats.add(x))
+    }
+  })
+  let boneCount = 0
+  vrm.scene.traverse((o) => {
+    if ((o as SkinnedMesh).isSkinnedMesh) boneCount = Math.max(boneCount, (o as SkinnedMesh).skeleton.bones.length)
+  })
+
+  const exprNames = vrm.expressionManager?.expressions.map((e) => e.expressionName) ?? []
+  let lookTarget: Object3D | null = null
+  if (vrm.lookAt) vrm.lookAt.autoUpdate = true
+  const extra: { collider: VRMSpringBoneCollider; group: VRMSpringBoneColliderGroup }[] = []
+
+  return {
+    root,
+    bones,
+    rest,
+    eyeHeight,
+    height: Math.max(box.max.y, headY + 0.15),
+    eyeOffset,
+    expressions: exprNames,
+    setExpression: (name, weight) => vrm.expressionManager?.setValue(name, weight),
+    lookAt: (target) => {
+      lookTarget = target
+      if (vrm.lookAt) vrm.lookAt.target = target ?? undefined
+    },
+    setNodeVisible: (name, visible) => {
+      const n = vrm.scene.getObjectByName(name)
+      if (n) n.visible = visible
+    },
+    setupFirstPerson: () => {
+      vrm.firstPerson?.setup({ firstPersonOnlyLayer: LAYERS.FIRST_PERSON_ONLY, thirdPersonOnlyLayer: LAYERS.THIRD_PERSON_ONLY })
+      removeNeckFromFirstPerson(vrm.scene, vrm.humanoid.getRawBoneNode('neck'))
+      if (head) removeNearEyeFromFirstPerson(vrm.scene, head.localToWorld(new Vector3(...eyeOffset)), Math.max(0.24, Math.min(0.38, eyeHeight * 0.27)))
+      // 一人称の設定がないモデル: 頭の骨に付いたメッシュを三人称だけにする
+      if (!vrm.firstPerson || vrm.firstPerson.meshAnnotations.length === 0) {
+        head?.traverse((o) => {
+          if ((o as Mesh).isMesh) o.layers.set(LAYERS.THIRD_PERSON_ONLY)
+        })
+      }
+      // 一人称だけのメッシュ（頭を消した体）もアバターとして描く
+      vrm.scene.traverse((o) => {
+        if ((o as Mesh).isMesh && o.layers.isEnabled(0)) o.layers.enable(LAYERS.AVATAR)
+      })
+    },
+    update: (dt) => {
+      void lookTarget
+      vrm.update(dt)
+    },
+    setExtraColliders: (spheres) => {
+      const sb = vrm.springBoneManager
+      if (!sb) return
+      // 前回の分を外す
+      for (const e of extra) {
+        for (const j of sb.joints) j.colliderGroups = j.colliderGroups.filter((g) => g !== e.group)
+        e.collider.removeFromParent()
+      }
+      extra.length = 0
+      for (const s of spheres) {
+        const collider = new VRMSpringBoneCollider(new VRMSpringBoneColliderShapeSphere({ radius: s.radius, offset: new Vector3() }))
+        s.obj.add(collider)
+        const group: VRMSpringBoneColliderGroup = { colliders: [collider], name: 'ttv-extra' }
+        for (const j of sb.joints) j.colliderGroups = [...j.colliderGroups, group]
+        extra.push({ collider, group })
+      }
+    },
+    dispose: () => {
+      for (const e of extra) e.collider.removeFromParent()
+      VRMUtils.deepDispose(vrm.scene)
+    },
+    kind: 'vrm',
+    meta: (vrm.meta as unknown as Record<string, unknown>) ?? null,
+    stats: { triangles: Math.round(triangles), materials: mats.size, bones: boneCount },
+    flipped: vrm.meta?.metaVersion === '0',
+  }
+}
+
+/** VRM の利用条件（[31] 詳細表示用） */
+export const describeMeta = (meta: Record<string, unknown> | null) => {
+  if (!meta) return null
+  const m = meta as Record<string, unknown>
+  const v = (k: string) => (m[k] === undefined || m[k] === null ? null : String(m[k]))
+  return {
+    name: v('name') ?? v('title'),
+    authors: Array.isArray(m.authors) ? (m.authors as string[]).join(', ') : v('author'),
+    version: v('version'),
+    avatarPermission: v('avatarPermission') ?? v('allowedUserName'),
+    commercial: v('commercialUsage') ?? v('commercialUssageName'),
+    modification: v('modification'),
+    redistribution: v('allowRedistribution'),
+    violent: v('allowExcessivelyViolentUsage') ?? v('violentUssageName'),
+    sexual: v('allowExcessivelySexualUsage') ?? v('sexualUssageName'),
+    license: v('licenseUrl') ?? v('licenseName'),
+    credit: v('creditNotation'),
+  }
+}

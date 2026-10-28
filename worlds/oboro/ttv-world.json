@@ -1,0 +1,15 @@
+{
+  "name": "朧の屋敷 — OBORO",
+  "description": "月夜の忍者屋敷から五つの印を集めて脱出する、1〜4人の協力探索。回転隠し扉、跳躍の庭、水牢、無重力の蔵、壁と天井を歩く回廊。拡張クライアント同梱、標準クライアント互換移動あり。",
+  "tags": ["escape", "ninja", "cooperative", "japanese", "1-4players"],
+  "recommendedCapacity": 4, "maxCapacity": 4,
+  "physics": { "gravity": 9.81, "jump": 4.4, "allowInfiniteJump": false },
+  "camera": { "near": 0.04, "far": 160 },
+  "render": { "toneMapping": "aces", "exposure": 1.1, "hdr": false },
+  "spawn": { "position": [0, 0.1, 13], "yaw": 0 },
+  "permissions": { "allowedDomains": [], "relaxedRules": [] },
+  "credits": [
+    { "name": "TenTenV official world template, SDK, client", "author": "TenTenV contributors", "license": "AGPL-3.0-only", "url": "https://github.com/KinuX2/TenTenV" },
+    { "name": "Oboro architecture, game, raster materials and synthesized sound", "author": "Oboro project contributors", "license": "AGPL-3.0-only" }
+  ]
+}
