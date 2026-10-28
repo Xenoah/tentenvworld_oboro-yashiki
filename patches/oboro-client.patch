@@ -9,7 +9,7 @@
  }
 
  export interface ClickSpec {
-@@ -170,7 +172,25 @@
+@@ -170,7 +172,33 @@
    revision: () => number
  }
 
@@ -23,7 +23,15 @@
 +  /** Surface camera rotation is opt-in desktop only; VR always keeps its horizon. */
 +  rotateView?: boolean
 +}
++/** Oboro optional receive-audio extension, implemented by the bundled client. */
++export type VoiceEnvironment = 'outdoor' | 'room' | 'narrow' | 'underwater'
++export interface VoiceEnvironmentProfile { preset: VoiceEnvironment; lightweight?: boolean }
  export interface WorldRuntime {
++  voiceEffects?: {
++    setEnvironment: (peerId: string, profile: VoiceEnvironmentProfile | null) => void
++    activePeers: () => string[]
++  }
++
 +  locomotion?: {
 +    version: 1
 +    set: (profile: LocomotionProfile | null) => void
@@ -63,10 +71,14 @@
      }
    }
 
-@@ -289,6 +293,16 @@
+@@ -289,6 +293,20 @@
        remove: async (key: string) => (api ? api.storageDel(worldId, scope, key) : localKv(worldId, scope).remove(key)),
      })
      const rt: WorldRuntime = {
++      voiceEffects: {
++        setEnvironment: (peerId,profile) => { if(profile===null||s.members.get(peerId)?.verified)this.voice.setEnvironment(peerId,profile) },
++        activePeers: () => this.voice.activePeers(),
++      },
 +      locomotion: {
 +        version: 1,
 +        set: (profile) => {
@@ -546,7 +558,25 @@
 +}
 --- a/apps/client/src/world/players.tsx
 +++ b/apps/client/src/world/players.tsx
-@@ -333,6 +333,7 @@
+@@ -271,16 +271,14 @@
+   }, [engine, peerId, muted])
+   // 声を頭の位置に付ける
+   useEffect(() => {
+-    let attached = false
+     const attach = () => {
+       const a = engine.voice.remoteAudio(peerId)
+       if (a && audioGroup.current && a.parent !== audioGroup.current) {
+         audioGroup.current.add(a)
+-        attached = true
+       }
+     }
+     attach()
+-    const t = setInterval(() => !attached && attach(), 500)
++    const t = setInterval(attach, 500)
+     return () => clearInterval(t)
+   }, [engine, peerId])
+
+@@ -333,6 +331,7 @@
        grounded: pose.grounded,
        sitting: pose.sitting,
        velocity: [0, 0, 0],
@@ -597,3 +627,134 @@
        // 新しいホストへ、確定していない変更を送り直す
        for (const [key, p] of this.pending) this.t.sendR(next, { t: 'set', key, value: p.value, nonce: p.nonce })
      }
+--- a/apps/client/src/net/voice.ts
++++ b/apps/client/src/net/voice.ts
+@@ -4,6 +4,7 @@
+ // - 声の大きさを測って、話しているかの表示と口の動き（リップシンク）に使う
+ import { AudioListener, PositionalAudio } from 'three'
+ import { settings } from '../state/settings'
++import { VoiceAcoustics, VOICE_PRESETS, type VoiceEnvironmentProfile } from './voiceAcoustics'
+
+ export interface VoiceLevel {
+   /** 0〜1 の音量 */
+@@ -68,6 +69,7 @@
+   audio: PositionalAudio
+   meter: LevelMeter
+   gain: number
++  acoustics: VoiceAcoustics | null
+ }
+
+ export class VoiceManager {
+@@ -80,6 +82,7 @@
+   private remotes = new Map<string, Remote>()
+   private gains = new Map<string, number>()
+   private worldGains = new Map<string, number>()
++  private environments = new Map<string, VoiceEnvironmentProfile>()
+   private silenced = new Set<string>()
+   muted = false
+   /** Push-to-Talk のキーを押している間 */
+@@ -188,8 +191,9 @@
+     // 距離で小さくなる前の音で、話しているかを測る
+     const src = (audio as unknown as { source: AudioNode }).source
+     src?.connect(analyser)
+-    const r: Remote = { stream, el, audio, meter: new LevelMeter(analyser), gain: 1 }
++    const r: Remote = { stream, el, audio, meter: new LevelMeter(analyser), gain: 1, acoustics: null }
+     this.remotes.set(peerId, r)
++    const environment=this.environments.get(peerId);if(environment)this.setEnvironment(peerId,environment)
+     this.applyGain(peerId)
+     return audio
+   }
+@@ -203,9 +207,25 @@
+     } catch {
+       // すでに外れている
+     }
++    r.audio.gain.disconnect()
++    r.acoustics?.dispose()
++    ;(r.audio as unknown as {source?:AudioNode}).source?.disconnect()
++    r.meter.analyser.disconnect()
+     r.audio.removeFromParent()
+     this.remotes.delete(peerId)
+   }
++
++  /** Bounded preset processing on the actual incoming MediaStream, before HRTF/volume. */
++  setEnvironment(peerId:string,profile:VoiceEnvironmentProfile|null){
++    if(profile&&!Object.hasOwn(VOICE_PRESETS,profile.preset))return
++    if(profile){if(this.environments.size>=32&&!this.environments.has(peerId))return;this.environments.set(peerId,{preset:profile.preset,lightweight:!!profile.lightweight})}
++    else this.environments.delete(peerId)
++    const r=this.remotes.get(peerId);if(!r)return
++    if(!profile){r.audio.setFilters([]);r.acoustics?.dispose();r.acoustics=null;return}
++    if(!r.acoustics){r.acoustics=new VoiceAcoustics(this.listener.context);r.audio.setFilters(r.acoustics.filters)}
++    r.acoustics.set(profile)
++  }
++  activePeers(){return [...this.remotes.keys()]}
+
+   remoteAudio(peerId: string) {
+     return this.remotes.get(peerId)?.audio ?? null
+@@ -257,6 +277,7 @@
+   dispose() {
+     this.stopMic()
+     for (const id of [...this.remotes.keys()]) this.removeRemote(id)
++    this.environments.clear()
+   }
+ }
+
+--- /dev/null
++++ b/apps/client/src/net/voiceAcoustics.ts
+@@ -0,0 +1,57 @@
++/** Receive-only acoustics. This graph never opens a microphone or sends audio. */
++export type VoiceEnvironment = 'outdoor' | 'room' | 'narrow' | 'underwater'
++export interface VoiceEnvironmentProfile { preset: VoiceEnvironment; lightweight?: boolean }
++export const VOICE_PRESETS = {
++  outdoor: { cutoff: 22000, wet: 0, echo: 0, delay: .035, decay: .3 },
++  room: { cutoff: 15000, wet: .18, echo: .07, delay: .105, decay: .85 },
++  narrow: { cutoff: 11000, wet: .13, echo: .16, delay: .065, decay: .42 },
++  underwater: { cutoff: 700, wet: .06, echo: .04, delay: .045, decay: .3 },
++} as const
++const impulses = new WeakMap<BaseAudioContext, Map<VoiceEnvironment, AudioBuffer>>()
++/** Reproducible synthetic early/diffuse reflections, not measured room impulse responses. */
++function impulse(ctx: BaseAudioContext, preset: VoiceEnvironment) {
++  let cache=impulses.get(ctx);if(!cache){cache=new Map();impulses.set(ctx,cache)}
++  const cached=cache.get(preset);if(cached)return cached
++  const length=Math.ceil(ctx.sampleRate*VOICE_PRESETS[preset].decay),buffer=ctx.createBuffer(2,length,ctx.sampleRate)
++  for(let channel=0;channel<2;channel++){
++    const data=buffer.getChannelData(channel);let seed=0x1234abcd+channel*997
++    for(let i=0;i<length;i++){seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;const t=i/length;data[i]=((seed>>>0)/4294967296*2-1)*Math.exp(-t*7)*Math.min(1,i/(ctx.sampleRate*.012))}
++  }
++  cache.set(preset,buffer);return buffer
++}
++function ramp(param:AudioParam,value:number,time:number){if(typeof param.cancelAndHoldAtTime==='function')param.cancelAndHoldAtTime(time);else{param.cancelScheduledValues(time);param.setValueAtTime(param.value,time)}param.linearRampToValueAtTime(value,time+.18)}
++export class VoiceAcoustics {
++  readonly lowpass:BiquadFilterNode
++  readonly dry:GainNode
++  readonly mix:GainNode
++  readonly filters:AudioNode[]
++  readonly delay:DelayNode
++  readonly echo:GainNode
++  readonly reverbs:[ConvolverNode,ConvolverNode]
++  readonly wet:[GainNode,GainNode]
++  private branch=0
++  private key=''
++  private convolutionConnected=false
++  private dead=false
++  constructor(readonly ctx:BaseAudioContext){
++    this.lowpass=ctx.createBiquadFilter();this.lowpass.type='lowpass';this.lowpass.Q.value=.5;this.lowpass.frequency.value=Math.min(22000,ctx.sampleRate*.49)
++    this.dry=ctx.createGain();this.mix=ctx.createGain();this.filters=[this.lowpass,this.dry,this.mix]
++    this.delay=ctx.createDelay(.25);this.delay.delayTime.value=.035;this.echo=ctx.createGain();this.echo.gain.value=0
++    this.lowpass.connect(this.delay);this.delay.connect(this.echo);this.echo.connect(this.mix)
++    this.reverbs=[ctx.createConvolver(),ctx.createConvolver()];this.wet=[ctx.createGain(),ctx.createGain()]
++    for(let i=0;i<2;i++){this.wet[i].gain.value=0;this.reverbs[i].connect(this.wet[i]);this.wet[i].connect(this.mix)}
++  }
++  set(profile:VoiceEnvironmentProfile){
++    if(this.dead||!Object.hasOwn(VOICE_PRESETS,profile.preset))return
++    const key=profile.preset+':'+!!profile.lightweight;if(this.key===key)return;this.key=key
++    const p=VOICE_PRESETS[profile.preset],t=this.ctx.currentTime,lite=!!profile.lightweight
++    ramp(this.lowpass.frequency,Math.min(p.cutoff,this.ctx.sampleRate*.49),t)
++    ramp(this.delay.delayTime,p.delay,t);ramp(this.echo.gain,p.echo,t)
++    const wet=lite?0:p.wet;ramp(this.dry.gain,1-wet-p.echo,t)
++    if(wet>0&&!this.convolutionConnected){for(const c of this.reverbs)this.lowpass.connect(c);this.convolutionConnected=true}
++    if(wet===0&&this.convolutionConnected){for(const c of this.reverbs)this.lowpass.disconnect(c);this.convolutionConnected=false}
++    const next=1-this.branch;this.reverbs[next].buffer=impulse(this.ctx,profile.preset)
++    ramp(this.wet[next].gain,wet,t);ramp(this.wet[this.branch].gain,0,t);this.branch=next
++  }
++  dispose(){if(this.dead)return;this.dead=true;for(const node of [this.lowpass,this.dry,this.mix,this.delay,this.echo,...this.reverbs,...this.wet])node.disconnect()}
++}

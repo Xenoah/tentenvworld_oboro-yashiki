@@ -294,7 +294,7 @@ export class WorldEngine {
     })
     const rt: WorldRuntime = {
       voiceEffects: {
-        setEnvironment: (peerId,profile) => { if(s.members.has(peerId))this.voice.setEnvironment(peerId,profile) },
+        setEnvironment: (peerId,profile) => { if(profile===null||s.members.get(peerId)?.verified)this.voice.setEnvironment(peerId,profile) },
         activePeers: () => this.voice.activePeers(),
       },
       locomotion: {

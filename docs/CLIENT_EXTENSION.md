@@ -57,3 +57,9 @@ v1.2では `PlayerPose.speed?: number` を追加し、local playerの水平速�
 optionalな `locomotion.setSprintAllowed?(boolean | null)` を追加。WorldEngineは300msの期限を持ち、LocalPlayerはfalse中、デスクトップShiftとXRスティックの走行倍率を歩行相当に制限します。ワールドは100msごとに共有スタミナの状態から更新し、終了・アンマウント時は解除します。標準クライアントの単体importにはこの制限がないため、HP・木刀・気力のホスト判定は動作しますが、息切れ時の実速度制限は同梱クライアントが必要です。既存 `version: 1` へoptionalメソッドを足し、古い拡張との呼出互換性を維持しています。
 
 v1.4では `InstanceSession` の交代後再同期も修正。既存helloのstateEpochに未同期の-1を指定し、新ホストが確認済み参加者へsnapshotを再送します。wire message種別・チケット検証・権威条件は変更しません。交代先の全参加者へこのクライアント差分を適用してください。
+
+## v1.5 受信VC音響
+
+optionalな `voiceEffects.setEnvironment(peerId, {preset, lightweight?} | null)` と `activePeers()` を追加。presetはoutdoor／room／narrow／underwaterに限定し、確認済み参加者にだけ適用します。nullは退室後も解除可能です。公式 `WorldSession.transport.onRemoteAudio` とOpus relayの両方が呼ぶ `VoiceManager.addRemote` の受信MediaStreamへ接続し、HRTF／距離／利用者音量／ミュートより前で処理します。音声の送信やマイク許可は変更しません。
+
+`.ttvw`単体を未改変クライアントへimportすると「クライアント拡張が必要」と表示し、既存の声は加工しません。PagesのLocalTransportは音声を送受信しません。実験音を受信処理へ渡したブラウザ検査と、実際の別端末会話は異なります。詳細は[VOICE.md](VOICE.md)。

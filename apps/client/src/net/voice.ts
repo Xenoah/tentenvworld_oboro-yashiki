@@ -207,6 +207,7 @@ export class VoiceManager {
     } catch {
       // すでに外れている
     }
+    r.audio.gain.disconnect()
     r.acoustics?.dispose()
     ;(r.audio as unknown as {source?:AudioNode}).source?.disconnect()
     r.meter.analyser.disconnect()

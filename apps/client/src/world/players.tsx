@@ -271,16 +271,14 @@ const RemotePlayer: React.FC<{ engine: WorldEngine; member: Member; showAvatar: 
   }, [engine, peerId, muted])
   // 声を頭の位置に付ける
   useEffect(() => {
-    let attached = false
     const attach = () => {
       const a = engine.voice.remoteAudio(peerId)
       if (a && audioGroup.current && a.parent !== audioGroup.current) {
         audioGroup.current.add(a)
-        attached = true
       }
     }
     attach()
-    const t = setInterval(() => !attached && attach(), 500)
+    const t = setInterval(attach, 500)
     return () => clearInterval(t)
   }, [engine, peerId])
 
