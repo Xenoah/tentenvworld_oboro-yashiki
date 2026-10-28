@@ -13,6 +13,7 @@ import { SoftLighting, DEFAULT_VISUALS, type VisualSettings } from './Lighting'
 import { Architecture, useMaterials, type Materials } from './Architecture'
 import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, command, distance, elapsed, initialState, remaining, tick, type Command, type GameState, type V3 } from './game'
 import { Hud, clock } from './Hud'
+import { Ninja, Smoke } from './Ninja'
 
 const STATE = 'w:oboro:game'
 function useGame(){
@@ -52,7 +53,13 @@ function useGame(){
     if(last.current.run===state.run&&last.current.stars<state.stars.length)play(rt.audioListener(),'star')
     last.current={run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length}
   },[state.run,state.phase,state.keys.length,state.stars.length])
-  return {state,send,host,players,message,setMessage,best}
+  // Spotted / smoke cues follow shared state, so every peer hears its own alert.
+  const me=rt.self().peerId,spotted=state.phase==='running'&&state.enemies.some(e=>e.target===me&&(e.mode==='chase'||e.mode==='warning')),wasSpotted=useRef(false),clouds=useRef(0)
+  useEffect(()=>{if(spotted&&!wasSpotted.current){play(rt.audioListener(),'alert');setMessage('見つかった！ 屏風や庭石の陰へ。煙玉 [B] で目くらまし')}wasSpotted.current=spotted},[spotted])
+  useEffect(()=>{const n=state.clouds?.length??0;if(n>clouds.current)play(rt.audioListener(),'smoke');clouds.current=n},[state.clouds?.length])
+  useEffect(()=>{const key=(e:KeyboardEvent)=>{const t=e.target as HTMLElement|null;if(e.code==='KeyB'&&!e.repeat&&!/INPUT|TEXTAREA|SELECT/.test(t?.tagName??'')&&!t?.isContentEditable)rt.events.emit('oboro:command',{run:stateRef.current.run,kind:'smoke:use'},'host')};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[rt])
+  const stateRef=useRef(state);stateRef.current=state
+  return {state,send,host,players,message,setMessage,best,held:state.held?.[me]??0}
 }
 type Game=ReturnType<typeof useGame>
 
@@ -73,10 +80,11 @@ function Oboro(){
     <Board game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} materials={m}/>
     <Gimmicks game={game} m={m} comfort={comfort}/>
     <Mobility game={game} comfort={comfort} m={m}/>
-    {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'}/>) }
+    {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'} difficulty={game.state.difficulty}/>) }
+    <Smoke state={game.state} m={m} send={game.send} now={()=>rt.clock().now()}/>
     <Music game={game} sound={sound}/>
     {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
-    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals}/>}
+    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} extra={game.held>0&&game.state.phase==='running'?<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>:undefined}/>}
   </>
 }
 function Button3D({text,position,onClick,material,width=1.1,rotation}:{text:string;position:V3;onClick:()=>void;material:T.Material;width?:number;rotation?:V3}){
@@ -222,21 +230,6 @@ function Seal({color,collected}:{color:string;collected:boolean}){
   const ref=useRef<T.Group>(null)
   useFrame(({clock})=>{if(ref.current&&!collected){ref.current.rotation.y=clock.elapsedTime*.6;ref.current.position.y=Math.sin(clock.elapsedTime*2)*.06}})
   return <group ref={ref}><mesh castShadow><torusGeometry args={[.19,.045,8,24]}/><meshStandardMaterial color={color} metalness={.65} roughness={.3} emissive={color} emissiveIntensity={collected?0:.45}/></mesh><mesh position={[0,-.23,0]}><boxGeometry args={[.07,.3,.07]}/><meshStandardMaterial color={color} metalness={.7} roughness={.3}/></mesh><mesh position={[.06,-.34,0]}><boxGeometry args={[.17,.055,.07]}/><meshStandardMaterial color={color} metalness={.7}/></mesh></group>
-}
-function Ninja({enemy:e,m,active}:{enemy:GameState['enemies'][number];m:Materials;active:boolean}){
-  const ref=useRef<T.Group>(null),leg1=useRef<T.Group>(null),leg2=useRef<T.Group>(null)
-  useFrame(({clock},dt)=>{if(!ref.current)return;const dest=new T.Vector3(...e.pos),dir=dest.clone().sub(ref.current.position);ref.current.position.lerp(dest,1-Math.exp(-dt*12));if(dir.length()>.03)ref.current.rotation.y=Math.atan2(dir.x,dir.z);const w=Math.sin(clock.elapsedTime*(e.mode==='patrol'?4:7))*.3;leg1.current!.rotation.x=w;leg2.current!.rotation.x=-w})
-  return <group ref={ref} position={e.pos} visible={active}>
-    <mesh material={m.cloth} position={[0,1.12,0]} castShadow><capsuleGeometry args={[.23,.43,4,10]}/></mesh>
-    <mesh material={m.cloth} position={[0,1.67,0]} castShadow><sphereGeometry args={[.22,12,10]}/></mesh>
-    <mesh position={[0,1.71,.193]}><boxGeometry args={[.28,.065,.05]}/><meshStandardMaterial color="#a8997e" roughness={1}/></mesh>
-    {[-.07,.07].map(x=><mesh key={x} position={[x,1.71,.225]}><sphereGeometry args={[.018,6,6]}/><meshBasicMaterial color="#171511"/></mesh>)}
-    <mesh material={m.red} position={[0,.99,0]}><boxGeometry args={[.49,.12,.38]}/></mesh>
-    {[-1,1].map((sign,i)=><group key={sign} ref={i===0?leg1:leg2} position={[sign*.14,.9,0]}><mesh position={[0,-.36,0]} material={m.cloth} castShadow><capsuleGeometry args={[.105,.5,4,8]}/></mesh><mesh position={[0,-.78,.07]} material={m.ink}><boxGeometry args={[.18,.12,.3]}/></mesh></group>)}
-    {[-1,1].map(sign=><group key={sign} position={[sign*.28,1.3,0]} rotation={[e.mode==='warning'?-1.3:.15,0,sign*.22]}><mesh material={m.cloth} position={[0,-.25,0]} castShadow><capsuleGeometry args={[.09,.38,4,8]}/></mesh><mesh material={m.ink} position={[0,-.5,0]}><sphereGeometry args={[.095,8,8]}/></mesh></group>)}
-    <mesh material={m.darkwood} position={[.15,1.3,-.22]} rotation={[0,0,-.5]}><cylinderGeometry args={[.035,.035,1.1,8]}/></mesh>
-    {e.mode!=='patrol'&&<><TextPlane text={e.mode==='warning'?'危険！ 距離を取れ':e.mode==='investigate'?'足音を追っている':e.mode==='search'?'周囲を捜索中':'気配を察知'} width={1.8} lineHeight={.19} position={[0,2.2,0]} color="#ffab79"/><mesh rotation={[-Math.PI/2,0,0]} position={[0,.04,0]}><ringGeometry args={[1.3,1.45,40]}/><meshBasicMaterial color="#ec9868" transparent opacity={.65} side={T.DoubleSide}/></mesh></>}
-  </group>
 }
 function Water(){
   const ref=useRef<T.Mesh>(null)

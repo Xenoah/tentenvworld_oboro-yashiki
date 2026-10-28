@@ -123,6 +123,12 @@ export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
       box([x,.12,z],[sx*2,.2,sz*2],'moss');stone([x,1.05,z],[sx,1.25,sz],'stone',x)
       for(let i=0;i<5;i++)stone([x+Math.sin(i*2)*sx,.25,z+Math.cos(i*3)*sz],[.35,.26,.4],'moss',i)
     }
+    // Folding screens (byobu): zigzag paper panels in lacquer frames; ninjas cannot see through them.
+    for(const [cx,cz] of [[3,3],[-2.5,-6.5]]){
+      for(let i=0;i<6;i++){const x=cx-.835+i*.334,a=i%2?.42:-.42
+        box([x,.95,cz],[.34,1.6,.03],'paper',[0,a,0]);box([x,1.77,cz],[.36,.06,.06],'darkwood',[0,a,0]);box([x,.13,cz],[.36,.06,.06],'darkwood',[0,a,0])}
+      box([cx,.05,cz],[2.1,.1,.34],'darkwood')
+    }
     // Stone stepping path and gravel raking lines.
     for(let z=8;z>-11;z-=1.25){box([1.2,.03,z],[1.5,.1,.85],'stone',[0,Math.sin(z)*.08,0])}
     for(const x of [-6,6])for(let z=-8;z<8;z+=4)lantern(x,z)
@@ -171,4 +177,5 @@ export const COLLISION_BOXES: {p:V3;s:V3}[] = (()=>{const boxes: {p:V3;s:V3}[] =
   {p:[-1.5,.85,-.7],s:[2.2,1.7,4.2]}, {p:[4.6,.85,-5.2],s:[2.3,1.7,2.5]}, {p:[-7.2,.8,3],s:[1.3,1.6,2]},
   ]
   for(let i=0;i<7;i++)boxes.push({p:[-11,-.25-i*.43,-13.4-i*.5],s:[1.8,.3,.65]})
+  for(const [cx,cz] of [[3,3],[-2.5,-6.5]])boxes.push({p:[cx,.9,cz],s:[2.05,1.8,.32]})
   return boxes})()

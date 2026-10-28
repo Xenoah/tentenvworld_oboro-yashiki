@@ -67,3 +67,19 @@ test('time attack: 3-2-1 lead-in blocks play, seals add time and record splits',
  assert.equal(tick(s1,[p],t0+COUNTDOWN+(DIFFICULTIES.normal.limit+5)*1000).phase,'running')
  assert.equal(tick(s1,[p],t0+COUNTDOWN+(DIFFICULTIES.normal.limit+DIFFICULTIES.normal.bonus)*1000+1).phase,'lost')
 })
+test('ninjas see a forward cone (plus close range); byobu blocks sight; smoke stuns',async()=>{
+ const {inView,SMOKE_SPOTS}=await import('../worlds/oboro/src/game.ts')
+ const e={pos:[0,0,0] as V3,target:null,alertAt:0,waypoint:0,mode:'patrol' as const,yaw:0}
+ assert.equal(inView(e,[0,0,5],110),true);assert.equal(inView(e,[0,0,-5],110),false);assert.equal(inView(e,[0,0,-1],110),true)
+ assert.equal(lineOfSight([3,0,1],[3,0,5]),false)
+ let s=start();s.updatedAt=t0+20000;s.protectedUntil.host=0;s.enemies[0]={pos:[6,0,0],target:null,alertAt:0,waypoint:0,mode:'patrol',yaw:Math.PI}
+ s.enemies[1].pos=[-8,0,-9]
+ s=tick(s,[{id:'host',pos:[6,0,4]}],t0+20200);assert.equal(s.enemies[0].target,null,'behind the ninja: unseen')
+ s.enemies[0].yaw=0;s=tick(s,[{id:'host',pos:[6,0,4]}],t0+20400);assert.equal(s.enemies[0].target,'host')
+ const take=(st:GameState,i:number,pos:V3=SMOKE_SPOTS[i])=>command(st,{run:st.run,kind:`smoke:take:${i}`},{id:'host',pos},t0+20500,true)
+ assert.equal(take(s,0,[0,0,12]),s);s=take(s,0);assert.equal(s.held.host,1);assert.equal(take(s,0),s)
+ s=command(s,{run:s.run,kind:'smoke:use'},{id:'host',pos:[6,0,3]},t0+20600,true);assert.equal(s.held.host,0);assert.equal(s.clouds.length,1)
+ s=tick(s,[{id:'host',pos:[6,0,1.2]}],t0+21000);assert.equal(s.enemies[0].mode,'stunned');assert.equal(s.phase,'running')
+ assert.equal(command(s,{run:s.run,kind:'smoke:use'},{id:'host',pos:[6,0,3]},t0+21000,true),s,'no bomb left')
+ s=tick(s,[{id:'host',pos:[6,0,1.2]}],t0+20600+3100);assert.notEqual(s.enemies[0].mode,'stunned')
+})

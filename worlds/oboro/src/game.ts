@@ -3,9 +3,9 @@ import { observeMotion, quietWindow, type MotionTrack, type Disturbance } from '
 export type V3 = [number, number, number]
 export type Difficulty = 'easy' | 'normal' | 'hard'
 export const DIFFICULTIES = {
-  easy: { label: '見習い', limit: 480, bonus: 30, speed: 1.05, sight: 6, windup: 2.8, multiplier: 1 },
-  normal: { label: '忍び', limit: 300, bonus: 30, speed: 1.65, sight: 8, windup: 2.0, multiplier: 1.5 },
-  hard: { label: '上忍', limit: 240, bonus: 20, speed: 2.2, sight: 10, windup: 1.4, multiplier: 2 },
+  easy: { label: '見習い', limit: 480, bonus: 30, speed: 1.05, sight: 6, fov: 100, windup: 2.8, multiplier: 1 },
+  normal: { label: '忍び', limit: 300, bonus: 30, speed: 1.65, sight: 8, fov: 110, windup: 2.0, multiplier: 1.5 },
+  hard: { label: '上忍', limit: 240, bonus: 20, speed: 2.2, sight: 10, fov: 120, windup: 1.4, multiplier: 2 },
 }
 /** "3, 2, 1, 始め" — the round clock and every command wait for this lead-in. */
 export const COUNTDOWN = 3000
@@ -25,7 +25,10 @@ export const ACTIONS: Record<string, V3> = {
   exit: [0, 1.2, 17],
 }
 export interface Player { id: string; pos: V3; joinedAt?: number; grounded?: boolean; speed?: number }
-export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search'; heardId?:number; searchUntil?:number; investigate?:V3; reverse?:boolean }
+/** Smoke bombs lying in the courtyard; touching one picks it up, B (or the HUD button) throws it. */
+export const SMOKE_SPOTS: V3[] = [[-7.6, 0, -9.6], [8.2, 0, 1], [-7.4, 0, 6.6]]
+export const SMOKE_RADIUS = 6, SMOKE_STUN = 3000, CLOSE_SENSE = 1.8
+export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search' | 'stunned'; heardId?:number; searchUntil?:number; investigate?:V3; reverse?:boolean; yaw?:number; stunUntil?:number }
 export interface GameState {
   version: 1; run: number; phase: 'lobby' | 'running' | 'won' | 'lost'; difficulty: Difficulty;
   startedAt: number; updatedAt: number; endedAt: number; keys: string[]; rune: number; door: boolean;
@@ -33,6 +36,8 @@ export interface GameState {
   enemies: Enemy[]; protectedUntil: Record<string, number>; roster: string[]; serial: number; motion:Record<string,MotionTrack>; disturbances:Disturbance[]; noiseSerial:number;
   /** Seconds earned by seals, and the lap time (seconds after the start) of each seal. */
   bonus: number; splits: { id: string; t: number }[];
+  /** Remaining smoke bombs on the ground, bombs held per player, recent clouds for every client's effect. */
+  smokeLeft: boolean[]; held: Record<string, number>; clouds: { pos: V3; at: number; by: string }[];
 }
 export type Command = { run: number; kind: string; value?: string }
 export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameState => ({
@@ -40,7 +45,7 @@ export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameSt
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
     { pos: [-5, 0, -8], target: null, alertAt: 0, waypoint: 1, mode: 'patrol' },
     { pos: [7, 0, 5], target: null, alertAt: 0, waypoint: 2, mode: 'patrol', reverse: true },
-  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0, bonus: 0, splits: [],
+  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0, bonus: 0, splits: [], smokeLeft: SMOKE_SPOTS.map(() => true), held: {}, clouds: [],
 })
 export const distance = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 export const safe = (p: V3) => p[2] > 8 || p[1] > 1.8 || p[1] < -1 || p[2] < -13 || Math.abs(p[0]) > 9
@@ -53,7 +58,9 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if (!cmd || typeof cmd.kind !== 'string' || cmd.run !== state.run || !player.pos.every(Number.isFinite)) return state
   const pos = ACTIONS[cmd.kind] ?? KEYS.find(k => `key:${k.id}` === cmd.kind)?.pos
   if (pos && distance(pos, player.pos) > (['start','restart','difficulty'].includes(cmd.kind)?6.4:3.4)) return state
-  if (!pos && cmd.kind !== 'recover' && cmd.kind !== 'brace') return state
+  const smokeSpot = cmd.kind.startsWith('smoke:take:') ? SMOKE_SPOTS[Number(cmd.kind.slice(11))] : undefined
+  if (smokeSpot && distance(smokeSpot, player.pos) > 2.6) return state
+  if (!pos && !smokeSpot && !['recover', 'brace', 'smoke:use'].includes(cmd.kind)) return state
   const s: GameState = structuredClone(state);s.motion??={};s.disturbances??=[];s.noiseSerial??=0
   if (cmd.kind === 'difficulty' && host && s.phase !== 'running' && cmd.value && cmd.value in DIFFICULTIES) { s.difficulty = cmd.value as Difficulty; return s }
   if ((cmd.kind === 'start' && s.phase === 'lobby') || (cmd.kind === 'restart' && (s.phase === 'lost' || s.phase === 'won'))) {
@@ -64,7 +71,17 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   }
   if (s.phase !== 'running' || now < s.startedAt) return state
   if (!s.roster.includes(player.id)) return state
-  if (cmd.kind === 'brace') {
+  if (smokeSpot) {
+    const i = Number(cmd.kind.slice(11)); s.smokeLeft ??= SMOKE_SPOTS.map(() => true); s.held ??= {}
+    if (!s.smokeLeft[i]) return state
+    s.smokeLeft[i] = false; s.held[player.id] = (s.held[player.id] ?? 0) + 1; s.serial++; return s
+  } else if (cmd.kind === 'smoke:use') {
+    s.held ??= {}; s.clouds ??= []
+    if (!(s.held[player.id] > 0)) return state
+    s.held[player.id]--; s.clouds = [...s.clouds.filter(c => now - c.at < 8000), { pos: [...player.pos] as V3, at: now, by: player.id }].slice(-4)
+    for (const e of s.enemies) if (distance(e.pos, player.pos) < SMOKE_RADIUS) { e.stunUntil = now + SMOKE_STUN; e.target = null; e.alertAt = 0; e.mode = 'stunned' }
+    s.serial++; return s
+  } else if (cmd.kind === 'brace') {
     const m=s.motion[player.id]
     if(!m||m.grounded||player.grounded===true||m.braceUsed||now-m.at>3000||distance(m.pos,player.pos)>1)return state
     m.braceAt=quietWindow(m,player.pos)?now:0;m.braceUsed=true;s.serial++;return s
@@ -93,7 +110,8 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   s.score = scoreFor(s, now); s.serial++; return s
 }
 // Axis-aligned sight blockers match the courtyard's stone garden and screens.
-export const BLOCKERS = [[-2.6, -.4, -2.8, 1.4], [3.5, 5.8, -6.5, -4], [-8, -6.5, 2, 4]]
+/** Stone islands and two folding screens (byobu); they block sight, hearing falloff and ninja movement. */
+export const BLOCKERS = [[-2.6, -.4, -2.8, 1.4], [3.5, 5.8, -6.5, -4], [-8, -6.5, 2, 4], [2, 4, 2.85, 3.15], [-3.4, -1.6, -6.65, -6.35]]
 export function lineOfSight(a: V3, b: V3) {
   return !BLOCKERS.some(([x0,x1,z0,z1]) => {
     let t0 = 0, t1 = 1
@@ -118,13 +136,16 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
   // Prune disconnected peers, so reconnects get fresh spawn protection; state remains <16 KB.
   for (const id of Object.keys(s.protectedUntil)) if (!s.roster.includes(id)) delete s.protectedUntil[id]
   for(const id of Object.keys(s.motion))if(!s.roster.includes(id))delete s.motion[id]
+  s.held??={};for(const id of Object.keys(s.held))if(!s.roster.includes(id))delete s.held[id]
+  s.clouds=(s.clouds??[]).filter(c=>now-c.at<8000)
   s.disturbances=s.disturbances.filter(e=>now-e.at<6500)
   for(const p of present){const observed=observeMotion(s.motion[p.id],p,now);s.motion[p.id]=observed.motion;for(const e of observed.events)s.disturbances.push({...e,by:p.id,id:++s.noiseSerial})}
   s.disturbances=s.disturbances.slice(-16)
   if (now >= s.startedAt && remaining(s, now) <= 0) return finish(s, 'lost', now, '夜明けの鐘。任務時間が尽きた。')
   if (now - s.startedAt < 15000) return s
   s.enemies.forEach(enemy => {
-    const candidates = present.filter(p => !safe(p.pos) && now > (s.protectedUntil[p.id] ?? 0) && distance(p.pos, enemy.pos) < cfg.sight && lineOfSight(enemy.pos, p.pos)).sort((a,b)=>distance(a.pos,enemy.pos)-distance(b.pos,enemy.pos))
+    if (now < (enemy.stunUntil ?? 0)) { enemy.mode = 'stunned'; enemy.target = null; enemy.alertAt = 0; return }
+    const candidates = present.filter(p => !safe(p.pos) && now > (s.protectedUntil[p.id] ?? 0) && distance(p.pos, enemy.pos) < cfg.sight && lineOfSight(enemy.pos, p.pos) && (enemy.target === p.id || inView(enemy, p.pos, cfg.fov))).sort((a,b)=>distance(a.pos,enemy.pos)-distance(b.pos,enemy.pos))
     const target = candidates[0]
     if (target) {
       if (enemy.target !== target.id) enemy.alertAt = now
@@ -142,6 +163,7 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
       if(enemy.investigate&&now<(enemy.searchUntil??0)){
         enemy.mode=distance(enemy.pos,enemy.investigate)<.65?'search':'investigate'
         if(enemy.mode==='investigate')move(enemy,enemy.investigate,cfg.speed*.8*dt)
+        else enemy.yaw=(enemy.yaw??0)+dt*2.2
       }else{
         enemy.mode='patrol';delete enemy.investigate
         const p=ROUTE[enemy.waypoint];if(distance(enemy.pos,p)<.3)enemy.waypoint=nextWaypoint(enemy)
@@ -154,6 +176,7 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
 function move(e: Enemy, p: V3, amount: number) {
   const dx = p[0]-e.pos[0], dz = p[2]-e.pos[2], d = Math.hypot(dx,dz)
   if (d < .01) return
+  e.yaw = Math.atan2(dx, dz)
   const next: V3 = [e.pos[0]+dx/d*Math.min(d,amount), 0, e.pos[2]+dz/d*Math.min(d,amount)]
   // Collision sliding around courtyard obstacles; enemies cannot attack through them.
   const blocked=(v:V3)=>BLOCKERS.some(([a,b,c,d])=>v[0]>a-.3&&v[0]<b+.3&&v[2]>c-.3&&v[2]<d+.3)
@@ -164,4 +187,11 @@ function move(e: Enemy, p: V3, amount: number) {
   e.pos = next
 }
 
+/** Ninjas see a forward cone (fov degrees) plus anything within CLOSE_SENSE metres. */
+export function inView(e: Enemy, p: V3, fov: number) {
+  const dx = p[0] - e.pos[0], dz = p[2] - e.pos[2]
+  if (Math.hypot(dx, dz) < CLOSE_SENSE) return true
+  let diff = Math.atan2(dx, dz) - (e.yaw ?? 0); diff = Math.atan2(Math.sin(diff), Math.cos(diff))
+  return Math.abs(diff) <= fov * Math.PI / 360
+}
 export function hearingRange(e:Disturbance,listener:V3){return e.radius*(lineOfSight(e.pos,listener)?1:.55)*(Math.abs(e.pos[0])>9||e.pos[2]>8?.65:1)*(e.pos[1]>2?.6:1)}
