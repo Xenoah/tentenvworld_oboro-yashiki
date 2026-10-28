@@ -1,13 +1,14 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {initialState, command, tick, KEYS, ACTIONS, DIFFICULTIES, COUNTDOWN, remaining, lineOfSight, type GameState, type Player, type V3} from '../worlds/oboro/src/game.ts'
+import {initialState, command, tick, KEYS, ACTIONS, DIFFICULTIES, COUNTDOWN, remaining, lineOfSight, actionPos, layoutOf, type GameState, type Player, type V3} from '../worlds/oboro/src/game.ts'
 const t0=1_000_000
 const p:Player={id:'host',pos:[0,0,12]}
 const start=(difficulty:'easy'|'normal'|'hard'='normal')=>command(initialState(0,difficulty),{run:0,kind:'start'},p,t0,true)
-const act=(s:GameState,kind:string,pos:V3=ACTIONS[kind],id='host',host=true)=>command(s,{run:s.run,kind},{id,pos},t0+5000,host)
+const act=(s:GameState,kind:string,pos:V3=actionPos(s,kind)!,id='host',host=true)=>command(s,{run:s.run,kind},{id,pos},t0+5000,host)
 function solve(s:GameState){
-  for(const kind of ['rune:moon','rune:wave','rune:pine','valve:0','valve:1','star:0','star:1','star:2'])s=act(s,kind)
-  for(const k of KEYS)s=act(s,`key:${k.id}`,k.pos)
+  const l=layoutOf(s)
+  for(const kind of [...l.runeOrder.map(r=>`rune:${r}`),'valve:0','valve:1',...l.starOrder.map(i=>`star:${i}`)])s=act(s,kind)
+  for(const k of KEYS)s=act(s,`key:${k.id}`)
   return s
 }
 test('one player can finish all five sections, escape and restart',()=>{
@@ -21,12 +22,22 @@ test('host start only, distance and round reject stale/spoofed/out-of-range comm
  assert.equal(act(s,'rune:evil',[0,0,0]),s);assert.equal(act(s,'valve:900',[0,0,0]),s)
 })
 test('keys are shared, duplicate pickup is idempotent, gated keys cannot bypass puzzles',()=>{
- let s=start();const wood=KEYS[0];assert.equal(act(s,'key:wood',wood.pos),s)
- s=solve(s);const points=s.score;const dup=act(s,'key:fire',KEYS[1].pos);assert.equal(dup,s);assert.equal(dup.score,points)
+ let s=start();assert.equal(act(s,'key:wood'),s)
+ s=solve(s);const points=s.score;const dup=act(s,'key:fire');assert.equal(dup,s);assert.equal(dup.score,points)
 })
 test('sequence is solo solvable and wrong rune resets; stars enforce order',()=>{
- let s=start();s=act(s,'rune:moon');s=act(s,'rune:pine');assert.equal(s.rune,0)
- assert.equal(act(s,'star:2'),s);for(const k of ['rune:moon','rune:wave','rune:pine'])s=act(s,k);assert.equal(s.door,true)
+ let s=start();const l=layoutOf(s),[a,b,c]=l.runeOrder;s=act(s,`rune:${a}`);s=act(s,`rune:${c}`);assert.equal(s.rune,0)
+ assert.equal(act(s,`star:${l.starOrder[2]}`),s);for(const k of [a,b,c])s=act(s,`rune:${k}`);assert.equal(s.door,true)
+})
+test('each round reshuffles runes, stars, valves, seals and coins deterministically from its seed',async()=>{
+ const {layoutFor}=await import('../worlds/oboro/src/layout.ts')
+ const seeds=Array.from({length:40},(_,i)=>layoutFor(i*7919+3))
+ assert.ok(new Set(seeds.map(l=>l.runeOrder.join())).size>3);assert.ok(new Set(seeds.map(l=>l.starOrder.join())).size>3)
+ assert.ok(new Set(seeds.map(l=>l.valves.join())).size>3);assert.ok(new Set(seeds.map(l=>JSON.stringify(l.keyPos.water))).size>1)
+ assert.deepEqual(layoutFor(12345),layoutFor(12345));assert.deepEqual(layoutFor(0).runeOrder,['moon','wave','pine'])
+ const r1=start(),r2=command(act(act(solve(start()),'exit'),'restart',p.pos),{run:0,kind:'noop'},p,t0,true);assert.notEqual(r1.seed,0);assert.notEqual(r2.seed,r1.seed)
+ let s=start();const coin=layoutOf(s).coins[0];s=act(s,'coin:0');assert.deepEqual(s.coins,[0]);assert.equal(s.coinPoints,coin.value);assert.equal(act(s,'coin:0'),s)
+ assert.equal(act(s,'coin:1',[0,0,30]),s)
 })
 test('late join gets shared snapshot, spawn protection, disconnect prunes, host migration keeps state',()=>{
  let s=solve(start());s=tick(s,[p,{id:'guest',pos:[0,0,12]}],t0+4000);assert.equal(s.keys.length,5);assert.equal(s.roster.length,2)

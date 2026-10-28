@@ -11,7 +11,8 @@ import { Pad, Rope, Touch, markWarp } from './Pads'
 import { Taiko, play, setCuesEnabled, type Mood } from './audio'
 import { SoftLighting, DEFAULT_VISUALS, type VisualSettings } from './Lighting'
 import { Architecture, useMaterials, type Materials } from './Architecture'
-import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, command, distance, elapsed, initialState, remaining, tick, type Command, type GameState, type V3 } from './game'
+import { RUNES, RUNE_NAMES, SCROLL_SPOTS, VALVE_SPOTS } from './layout'
+import { ACTIONS, DIFFICULTIES, KEYS, SPAWN, layoutOf, command, distance, elapsed, initialState, remaining, tick, type Command, type GameState, type V3 } from './game'
 import { Hud, clock } from './Hud'
 import { Ninja, Smoke } from './Ninja'
 
@@ -83,6 +84,7 @@ function Oboro(){
     {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'} difficulty={game.state.difficulty}/>) }
     <Smoke state={game.state} m={m} send={game.send} now={()=>rt.clock().now()}/>
     <Music game={game} sound={sound}/>
+    <SealBurst state={game.state}/>
     {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
     {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} extra={game.held>0&&game.state.phase==='running'?<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>:undefined}/>}
   </>
@@ -111,13 +113,18 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
   const keyActive=(id:string)=>running&&!s.keys.includes(id)&&(id!=='wood'||s.door)&&(id!=='water'||s.valves.length===2)&&(id!=='void'||s.stars.length===3)
   const warp=(p:V3,look=0)=>{if(!running)return;markWarp();rt.locomotion?.set(null);rt.teleport(p,look);play(rt.audioListener(),'warp')}
   // Comfort mode and the standard client use warp pads; the extended client without comfort uses real swimming/floating.
-  const pads=comfort||!rt.locomotion
+  const pads=comfort||!rt.locomotion,l=layoutOf(s),[scrollPos,scrollYaw]=SCROLL_SPOTS[l.scroll]
   return <>
-    <TextPlane text="一　廻り書院\n月に聞き、波を渡り、松に隠れよ" width={3.4} lineHeight={.23} position={[-14,2.8,2]} color="#e4ce9e"/>
-    {['moon','wave','pine'].map((r,i)=><Button3D key={r} text={['月','波','松'][i]} position={ACTIONS[`rune:${r}`]} material={s.rune>i?m.brass:m.red} width={.7} onClick={()=>g.send(`rune:${r}`)}/>)}
+    <TextPlane text={"一　廻り書院\n札の順は、屋敷のどこかの掛軸に"} width={3.4} lineHeight={.23} position={[-14,2.8,2]} color="#e4ce9e"/>
+    {RUNES.map(r=><Button3D key={r} text={RUNE_NAMES[r]} position={ACTIONS[`rune:${r}`]} material={l.runeOrder.indexOf(r)<s.rune?m.brass:m.red} width={.7} onClick={()=>g.send(`rune:${r}`)}/>)}
     <RotatingDoor open={s.door} m={m}/>
-    <TextPlane text={s.door?'奥の箱に、木の印。':'月 → 波 → 松'} width={1.2} lineHeight={.18} position={[-17,2,-5.55]} color="#392f22"/>
-    {KEYS.map((k)=><group key={k.id} position={k.pos}>
+    {/* The rune order hangs on a scroll somewhere else in the mansion each round. */}
+    <group position={scrollPos} rotation={[0,scrollYaw,0]}>
+      <mesh material={m.paper} position={[0,0,-.02]}><boxGeometry args={[.62,1.25,.02]}/></mesh>
+      {[.66,-.66].map(y=><mesh key={y} material={m.darkwood} position={[0,y,0]} rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.025,.025,.74,8]}/></mesh>)}
+      <TextPlane text={`廻り書院の札\n\n${l.runeOrder.map(r=>RUNE_NAMES[r]).join('\n↓\n')}`} width={.5} lineHeight={.1} position={[0,0,.001]} color="#2d2418"/>
+    </group>
+    {KEYS.map((k)=><group key={k.id} position={l.keyPos[k.id]}>
       <mesh material={m.darkwood} position={[0,-.45,0]} castShadow><boxGeometry args={[.8,.6,.6]}/></mesh>
       <mesh material={m.brass} position={[0,-.13,0]}><boxGeometry args={[.86,.07,.66]}/></mesh>
       <Clickable label={`${k.name}を取る（仲間全員で共有）`} enabled={keyActive(k.id)} reach={2.3} onClick={()=>g.send(`key:${k.id}`)}>
@@ -136,27 +143,27 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
     <Touch position={[16,.2,5.5]} size={[1.5,2,1.5]} enabled={running&&pads} onEnter={()=>warp([16,3.5,3.8])}/>
     <Pad position={[14.6,3.42,1.9]} label="庭へ戻る" onEnter={()=>warp([14,.1,7])} enabled={running}/>
     <TextPlane text="三　水牢\n両岸の水門に触れて開け、水底へ" width={3.4} lineHeight={.22} position={[-14,2,-12.5]} color="#9acfc6"/>
-    {[0,1].map(i=><group key={i}>
-      <Clickable position={ACTIONS[`valve:${i}`]} label={`水門 ${i+1} を開く`} reach={3} onClick={()=>g.send(`valve:${i}`)}>
+    {l.valves.map((slot,i)=>{const v=VALVE_SPOTS[slot];return <group key={i}>
+      <Clickable position={v.pos} rotation={[0,v.yaw,0]} label={`水門 ${i+1} を開く`} reach={3} onClick={()=>g.send(`valve:${i}`)}>
         <mesh material={s.valves.includes(i)?m.brass:m.red} rotation={[0,0,s.valves.includes(i)?Math.PI/2:0]}><torusGeometry args={[.33,.055,8,20]}/></mesh>
         <mesh material={m.brass}><boxGeometry args={[.6,.05,.08]}/></mesh>
-        <TextPlane text={s.valves.includes(i)?'開':'水門'} width={.7} lineHeight={.13} position={[0,.6,0]}/>
+        <mesh material={m.darkwood} position={[0,-.45,-.05]}><boxGeometry args={[.12,.9,.12]}/></mesh>
       </Clickable>
-      <Touch position={[ACTIONS[`valve:${i}`][0],0,-12.2]} size={[1.6,2.2,1.6]} enabled={running&&!s.valves.includes(i)} onEnter={()=>g.send(`valve:${i}`)}/>
-    </group>)}
+      <FaceCamera position={[v.pos[0],v.pos[1]+.62,v.pos[2]]}><TextPlane text={s.valves.includes(i)?'開':'水門'} width={.7} lineHeight={.13} color={s.valves.includes(i)?'#c5e9d9':'#ffd7b0'}/></FaceCamera>
+      <Touch position={v.touch} size={[1.6,2.2,1.6]} enabled={running&&!s.valves.includes(i)} onEnter={()=>g.send(`valve:${i}`)}/>
+    </group>})}
     <Pad position={[-12.6,.06,-12.4]} label={s.valves.length===2?'水牢へ潜る':'水牢へ潜る（水門 '+s.valves.length+'/2）'} color="#6ddacb" onEnter={()=>warp(rt.locomotion&&!comfort?[-12,-1.8,-16]:[-12.6,-2.9,-16.6])} enabled={running}/>
     <Pad position={[-11.2,-3.06,-20.6]} label="岸へ浮上" color="#6ddacb" onEnter={()=>warp([-14.6,.15,-11.6])} enabled={running}/>
     <TextPlane text="四　星 蔵\n一 → 二 → 三。足場を渡り、星に触れる" width={4} lineHeight={.23} position={[0,3.2,-15]} color="#bfcaee"/>
     {[0,1,2].map(i=><group key={i} position={ACTIONS[`star:${i}`]}>
       <Clickable label={`星 ${i+1} を灯す`} reach={2.7} onClick={()=>g.send(`star:${i}`)}><mesh rotation={[0,0,Math.PI/4]}><octahedronGeometry args={[.28]}/><meshStandardMaterial color={s.stars.includes(i)?'#ffe5a0':'#65769f'} emissive={s.stars.includes(i)?'#cc8a43':'#283363'} emissiveIntensity={1}/></mesh></Clickable>
-      <Touch position={[0,-1,0]} size={[2.3,2.8,2.3]} enabled={running&&s.stars.length===i} onEnter={()=>g.send(`star:${i}`)}/>
-      <TextPlane text={['一','二','三'][i]} width={.6} lineHeight={.2} position={[0,.5,0]}/>
+      <Touch position={[0,-1,0]} size={[2.3,2.8,2.3]} enabled={running&&l.starOrder[s.stars.length]===i} onEnter={()=>g.send(`star:${i}`)}/>
+      <FaceCamera position={[0,.55,0]}><TextPlane text={['一','二','三'][l.starOrder.indexOf(i)]} width={.6} lineHeight={.24} color={s.stars.includes(i)?'#ffe5a0':'#dfe6ff'}/></FaceCamera>
     </group>)}
     {pads&&<>
-      <Pad position={[0,.06,-16.1]} label="浮遊足場 一" color="#b0baff" onEnter={()=>warp([-2,1,-17])} enabled={running}/>
-      <Pad position={[-2.65,.93,-16.35]} radius={.35} label="足場 二へ" color="#b0baff" onEnter={()=>warp([2,2.8,-20])} enabled={running}/>
-      <Pad position={[2.65,2.73,-19.35]} radius={.35} label="足場 三へ" color="#b0baff" onEnter={()=>warp([-2,4.6,-21])} enabled={running}/>
-      <Pad position={[-2.65,4.53,-20.35]} radius={.35} label="空の印へ" color="#b0baff" onEnter={()=>warp([0,4.6,-19])} enabled={running}/>
+      {/* The pad chain follows this round's star order: 一 → 二 → 三 → the void seal. */}
+      <Pad position={[0,.06,-16.1]} label="星 一 の足場へ" color="#b0baff" onEnter={()=>warp(STAR_REST[l.starOrder[0]])} enabled={running}/>
+      {[0,1,2].map(i=>{const k=l.starOrder.indexOf(i);return <Pad key={i} position={STAR_PAD[i]} radius={.35} label={k<2?`星 ${['二','三'][k]} の足場へ`:'空の印へ'} color="#b0baff" onEnter={()=>warp(k<2?STAR_REST[l.starOrder[k+1]]:[0,4.6,-19])} enabled={running}/>})}
     </>}
     <Pad position={[.7,pads?4.53:.06,pads?-18.35:-16.6]} radius={.35} label="星蔵から戻る" onEnter={()=>warp([0,.1,-13.2])} enabled={running&&(pads||s.keys.includes('void'))}/>
     <TextPlane text="五　天井回廊\n足袋の印で壁へ。次に天井へ。" width={4} lineHeight={.23} position={[15,3.2,-15]} color="#d9bb7c"/>
@@ -170,6 +177,7 @@ function Gimmicks({game:g,m,comfort}:{game:Game;m:Materials;comfort:boolean}){
     <Button3D text={s.keys.length===5?'五印を納め、脱出':'脱出門 / 五つの印が必要'} position={ACTIONS.exit} rotation={[0,Math.PI,0]} width={2.7} material={s.keys.length===5?m.brass:m.red} onClick={()=>g.send('exit')}/>
     <Touch position={[0,0,16.4]} size={[3,2.4,1.4]} enabled={running&&s.keys.length===5} onEnter={()=>g.send('exit')}/>
     <TextPlane text="忍者は中庭を巡回。玄関・縁側・試練の部屋は安全。" width={6} lineHeight={.14} position={[0,3.2,8]} color="#c8d4c8"/>
+    {running&&l.coins.map((c,i)=>!s.coins?.includes(i)&&<Coin key={`${s.run}:${i}`} pos={c.pos} value={c.value} m={m} onTouch={()=>g.send(`coin:${i}`)}/>)}
   </>
 }
 function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolean}){
@@ -190,6 +198,16 @@ function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolea
       <Button3D text="壁から戻る" position={[10.7,1.5,-19.4]} material={m.ink} onClick={()=>enter('floor')}/>
     </>}
   </>
+}
+const STAR_REST:V3[]=[[-2,1,-17],[2,2.8,-20],[-2,4.6,-21]],STAR_PAD:V3[]=[[-2.65,.93,-16.35],[2.65,2.73,-19.35],[-2.65,4.53,-20.35]]
+/** Spinning gold koban; touch to bank its points (more in the open courtyard). */
+function Coin({pos,value,m,onTouch}:{pos:V3;value:number;m:Materials;onTouch:()=>void}){
+  const ref=useRef<T.Group>(null)
+  useFrame(({clock})=>{if(ref.current){ref.current.rotation.y=clock.elapsedTime*2.4;ref.current.position.y=pos[1]+Math.sin(clock.elapsedTime*3+pos[0])*.05}})
+  return <><group ref={ref} position={pos}><mesh scale={[1,1.45,1]} rotation={[Math.PI/2,0,0]} material={m.brass}><cylinderGeometry args={[.13,.13,.03,20]}/></mesh>
+    <mesh scale={[1,1.45,1]}><ringGeometry args={[.15,.2,20]}/><meshBasicMaterial color="#ffd970" transparent opacity={.5} toneMapped={false} side={T.DoubleSide}/></mesh></group>
+    <FaceCamera position={[pos[0],pos[1]+.42,pos[2]]}><TextPlane text={`${value}`} width={.42} lineHeight={.11} color="#ffe39a"/></FaceCamera>
+    <Touch position={[pos[0],pos[1]-.1,pos[2]]} size={[1.1,1.8,1.1]} onEnter={onTouch}/></>
 }
 const FOOTRESTS:V3[]=[[-2,.85,-17],[2,2.65,-20],[-2,4.45,-21],[0,4.45,-19],[10,1.35,-18],[14,4.15,-19],[16,4.15,-20]]
 function Mobility({game:g,comfort,m}:{game:Game;comfort:boolean;m:Materials}){
@@ -241,6 +259,21 @@ function Water(){
 function Moon(){return <group><mesh position={[-18,32,-48]}><sphereGeometry args={[2.5,24,16]}/><meshBasicMaterial color="#e9e5ce"/></mesh><mesh position={[-18,32,-48]}><sphereGeometry args={[3.3,24,16]}/><meshBasicMaterial color="#b8d5dc" transparent opacity={.06} depthWrite={false}/></mesh></group>}
 function Dust(){const ref=useRef<T.Points>(null),positions=useMemo(()=>{const a=new Float32Array(180*3);for(let i=0;i<180;i++){a[i*3]=Math.sin(i*237.1)*20;a[i*3+1]=.4+(i%34)*.16;a[i*3+2]=Math.cos(i*87.2)*19-3}return a},[]);useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=clock.elapsedTime*.003});return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions,3]}/></bufferGeometry><pointsMaterial size={.025} color="#edcf8c" transparent opacity={.45} depthWrite={false}/></points>}
 
+/** Burst of glowing motes at a seal the moment the team takes it (and a coin chime). */
+function SealBurst({state:s}:{state:GameState}){
+  const rt=useRuntime(),ref=useRef<T.Points>(null),seen=useRef({run:s.run,keys:s.keys.length,coins:s.coins?.length??0}),born=useRef(-99),origin=useRef(new T.Vector3()),tint=useRef(new T.Color())
+  const N=90,geo=useMemo(()=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(new Float32Array(N*3),3));return g},[])
+  const dirs=useMemo(()=>Array.from({length:N},(_,i)=>{const y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),a=i*2.39996;return new T.Vector3(Math.cos(a)*r,y*.7+.4,Math.sin(a)*r).multiplyScalar(1.4+(i%5)*.35)}),[])
+  useEffect(()=>{const prev=seen.current;if(prev.run===s.run){
+      if(s.keys.length>prev.keys){const id=s.keys.at(-1)!;origin.current.set(...layoutOf(s).keyPos[id]);tint.current.set(KEYS.find(k=>k.id===id)!.color);born.current=performance.now()/1000}
+      if((s.coins?.length??0)>prev.coins)play(rt.audioListener(),'coin')}
+    seen.current={run:s.run,keys:s.keys.length,coins:s.coins?.length??0}},[s.run,s.keys.length,s.coins?.length])
+  useFrame(()=>{const p=ref.current;if(!p)return;const t=performance.now()/1000-born.current;p.visible=t<1.4;if(!p.visible)return
+    const a=geo.attributes.position as T.BufferAttribute,k=1-Math.exp(-t*3.2)
+    dirs.forEach((d,i)=>a.setXYZ(i,origin.current.x+d.x*k,origin.current.y+d.y*k-t*t*.6,origin.current.z+d.z*k));a.needsUpdate=true
+    const mat=p.material as T.PointsMaterial;mat.opacity=Math.max(0,1-t/1.4);mat.color.copy(tint.current)})
+  return <points ref={ref} geometry={geo} frustumCulled={false} visible={false}><pointsMaterial size={.12} transparent depthWrite={false} toneMapped={false} blending={T.AdditiveBlending}/></points>
+}
 /** Taiko loop: calm in the lobby, faster as dawn nears, a heartbeat while a ninja is on you. */
 function Music({game:g,sound}:{game:Game;sound:boolean}){
   const rt=useRuntime(),mood=useRef<Mood>({tempo:84,danger:false})

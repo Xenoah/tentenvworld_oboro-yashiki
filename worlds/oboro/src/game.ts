@@ -1,4 +1,5 @@
 import { observeMotion, quietWindow, type MotionTrack, type Disturbance } from './movement'
+import { layoutFor, VALVE_SPOTS, type Layout } from './layout'
 /** Host-only, deterministic game rules. All coordinates are metres; timestamps are network ms. */
 export type V3 = [number, number, number]
 export type Difficulty = 'easy' | 'normal' | 'hard'
@@ -11,11 +12,11 @@ export const DIFFICULTIES = {
 export const COUNTDOWN = 3000
 export const SPAWN: V3 = [0, .1, 13]
 export const KEYS = [
-  { id: 'wood', name: '木の印', pos: [-17, 1.1, -3] as V3, color: '#e5b773', hint: '一・書院：掛軸の「月 → 波 → 松」の順に印を押し、回転扉の奥へ。' },
-  { id: 'fire', name: '火の印', pos: [16, 4.35, 3] as V3, color: '#f59960', hint: '二・跳躍の庭：踏切台から高台へ。快適モードでは足場を選べます。' },
-  { id: 'water', name: '水の印', pos: [-14, -2.4, -18] as V3, color: '#6ddacb', hint: '三・水牢：二つの水門を開け、水底の箱へ。浮上と休憩は自由です。' },
-  { id: 'void', name: '空の印', pos: [0, 5.2, -20] as V3, color: '#b0baff', hint: '四・星蔵：三つの星を順に灯す。上昇・下降して中央の印を探そう。' },
-  { id: 'moon', name: '月の印', pos: [16, 5.35, -20] as V3, color: '#f4d49b', hint: '五・天井回廊：壁の足袋から壁へ、上の印から天井へ渡ります。' },
+  { id: 'wood', name: '木の印', pos: [-17, 1.1, -3] as V3, color: '#e5b773', hint: '一・書院：屋敷のどこかに掛かる掛軸に札の順が書いてある。その順に札を押すと回転扉が開く。' },
+  { id: 'fire', name: '火の印', pos: [16, 4.35, 3] as V3, color: '#f59960', hint: '二・跳躍の庭：「跳」の台を踏めば高台へ。印は高台のどこか。' },
+  { id: 'water', name: '水の印', pos: [-14, -2.4, -18] as V3, color: '#6ddacb', hint: '三・水牢：水牢の周りに水門が二つ（場所は毎回変わる）。両方に触れてから潜り、水底の印へ。' },
+  { id: 'void', name: '空の印', pos: [0, 5.2, -20] as V3, color: '#b0baff', hint: '四・星蔵：星の番号（一→二→三）は毎回入れ替わる。番号順に触れると中央上空の印が現れる。' },
+  { id: 'moon', name: '月の印', pos: [16, 5.35, -20] as V3, color: '#f4d49b', hint: '五・天井回廊：壁の足場から天井へ渡り、天井の印へ。' },
 ] as const
 export const ACTIONS: Record<string, V3> = {
   start: [-4.6, 1.2, 10.5], restart: [-4.6, 1.2, 10.5], difficulty: [-4.6, 1.2, 10.5],
@@ -36,6 +37,8 @@ export interface GameState {
   enemies: Enemy[]; protectedUntil: Record<string, number>; roster: string[]; serial: number; motion:Record<string,MotionTrack>; disturbances:Disturbance[]; noiseSerial:number;
   /** Seconds earned by seals, and the lap time (seconds after the start) of each seal. */
   bonus: number; splits: { id: string; t: number }[];
+  /** Round seed for the puzzle layout (0 = classic), collected coin indices and their points. */
+  seed: number; coins: number[]; coinPoints: number;
   /** Remaining smoke bombs on the ground, bombs held per player, recent clouds for every client's effect. */
   smokeLeft: boolean[]; held: Record<string, number>; clouds: { pos: V3; at: number; by: string }[];
 }
@@ -45,18 +48,27 @@ export const initialState = (run = 0, difficulty: Difficulty = 'normal'): GameSt
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
     { pos: [-5, 0, -8], target: null, alertAt: 0, waypoint: 1, mode: 'patrol' },
     { pos: [7, 0, 5], target: null, alertAt: 0, waypoint: 2, mode: 'patrol', reverse: true },
-  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0, bonus: 0, splits: [], smokeLeft: SMOKE_SPOTS.map(() => true), held: {}, clouds: [],
+  ], protectedUntil: {}, roster: [], serial: 0, motion:{}, disturbances:[], noiseSerial:0, bonus: 0, splits: [], seed: 0, coins: [], coinPoints: 0, smokeLeft: SMOKE_SPOTS.map(() => true), held: {}, clouds: [],
 })
 export const distance = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 export const safe = (p: V3) => p[2] > 8 || p[1] > 1.8 || p[1] < -1 || p[2] < -13 || Math.abs(p[0]) > 9
 export const timeLimit = (s: GameState) => DIFFICULTIES[s.difficulty].limit + (s.bonus ?? 0)
 export const elapsed = (s: GameState, now: number) => Math.max(0, now - s.startedAt) / 1000
 export const remaining = (s: GameState, now: number) => Math.max(0, timeLimit(s) - elapsed(s, now))
-export const scoreFor = (s: GameState, now: number) => Math.max(0, Math.round((s.keys.length * 1000 + (s.phase === 'won' ? 3000 + remaining(s, now) * 4 : 0) - s.recoveries * 150) * DIFFICULTIES[s.difficulty].multiplier))
+export const scoreFor = (s: GameState, now: number) => Math.max(0, Math.round((s.keys.length * 1000 + (s.coinPoints ?? 0) + (s.phase === 'won' ? 3000 + remaining(s, now) * 4 : 0) - s.recoveries * 150) * DIFFICULTIES[s.difficulty].multiplier))
+export const layoutOf = (s: GameState): Layout => layoutFor(s.seed ?? 0)
+/** Where an action really is this round (valves, seals and coins move with the seed). */
+export function actionPos(s: GameState, kind: string): V3 | undefined {
+  const l = layoutOf(s)
+  if (kind.startsWith('valve:')) { const slot = l.valves[Number(kind.slice(6))]; return slot === undefined ? undefined : VALVE_SPOTS[slot].pos }
+  if (kind.startsWith('key:')) return KEYS.some(k => k.id === kind.slice(4)) ? l.keyPos[kind.slice(4)] : undefined
+  if (kind.startsWith('coin:')) return l.coins[Number(kind.slice(5))]?.pos
+  return ACTIONS[kind]
+}
 function finish(s: GameState, phase: 'won' | 'lost', now: number, reason: string) { s.phase = phase; s.endedAt = now; s.reason = reason; s.score = scoreFor(s, now); return s }
 export function command(state: GameState, cmd: Command, player: Player, now: number, host: boolean): GameState {
   if (!cmd || typeof cmd.kind !== 'string' || cmd.run !== state.run || !player.pos.every(Number.isFinite)) return state
-  const pos = ACTIONS[cmd.kind] ?? KEYS.find(k => `key:${k.id}` === cmd.kind)?.pos
+  const pos = actionPos(state, cmd.kind)
   if (pos && distance(pos, player.pos) > (['start','restart','difficulty'].includes(cmd.kind)?6.4:3.4)) return state
   const smokeSpot = cmd.kind.startsWith('smoke:take:') ? SMOKE_SPOTS[Number(cmd.kind.slice(11))] : undefined
   if (smokeSpot && distance(smokeSpot, player.pos) > 2.6) return state
@@ -66,6 +78,7 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if ((cmd.kind === 'start' && s.phase === 'lobby') || (cmd.kind === 'restart' && (s.phase === 'lost' || s.phase === 'won'))) {
     if (!host) return state
     const next = initialState(s.run + 1, s.difficulty)
+    next.seed = (Math.floor(now) ^ (s.run + 1) * 2654435761) >>> 0 || 1
     next.phase = 'running'; next.startedAt = now + COUNTDOWN; next.updatedAt = now; next.roster = [player.id]; next.protectedUntil[player.id] = now + COUNTDOWN + 12000
     return next
   }
@@ -90,14 +103,14 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
     if ((s.protectedUntil[player.id] ?? 0) > now + 5000) return state
     s.recoveries++; s.protectedUntil[player.id] = now + 9000
   } else if (cmd.kind.startsWith('rune:') && !s.door) {
-    const sequence = ['rune:moon', 'rune:wave', 'rune:pine']
+    const sequence = layoutOf(s).runeOrder.map(r => `rune:${r}`)
     s.rune = cmd.kind === sequence[s.rune] ? s.rune + 1 : cmd.kind === sequence[0] ? 1 : 0
     if (s.rune === 3) s.door = true
   } else if (cmd.kind.startsWith('valve:')) {
     const n = Number(cmd.kind.split(':')[1]); if (![0, 1].includes(n) || s.valves.includes(n)) return state
     s.valves.push(n)
   } else if (cmd.kind.startsWith('star:')) {
-    const n = Number(cmd.kind.split(':')[1]); if (n !== s.stars.length || ![0, 1, 2].includes(n)) return state
+    const n = Number(cmd.kind.split(':')[1]); if (n !== layoutOf(s).starOrder[s.stars.length]) return state
     s.stars.push(n)
   } else if (cmd.kind.startsWith('key:')) {
     const key = cmd.kind.slice(4)
@@ -105,6 +118,10 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
     if ((key === 'wood' && !s.door) || (key === 'water' && s.valves.length !== 2) || (key === 'void' && s.stars.length !== 3)) return state
     s.keys.push(key); s.bonus = (s.bonus ?? 0) + DIFFICULTIES[s.difficulty].bonus
     ;(s.splits ??= []).push({ id: key, t: Math.round(elapsed(s, now) * 10) / 10 })
+  } else if (cmd.kind.startsWith('coin:')) {
+    const i = Number(cmd.kind.slice(5)), coin = layoutOf(s).coins[i]; s.coins ??= []
+    if (!coin || s.coins.includes(i)) return state
+    s.coins.push(i); s.coinPoints = (s.coinPoints ?? 0) + coin.value
   } else if (cmd.kind === 'exit' && s.keys.length === KEYS.length) return finish(s, 'won', now, '五つの印が結ばれ、朧の門が開いた。')
   else return state
   s.score = scoreFor(s, now); s.serial++; return s
