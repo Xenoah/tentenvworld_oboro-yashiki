@@ -1,4 +1,6 @@
-# 朧の屋敷 — OBORO v1.3.0
+# 朧の屋敷 — OBORO v1.3.1
+
+v1.3.0の機能を維持した検証修正版です。v1.3.0タグの通常CIとPagesは成功しましたが、Releaseの移動同期試験が2回タイムアウトし、配布処理は未実行でした。旧タグを保持し、試験開始時の両者の同期・接地・位置・実入力を確認する形へ強化。6.5秒で消える実際の足音イベントを受信時に記録し、主催者とゲストで完全一致を検査します。ゲーム状態や成功値の注入は追加していません。
 
 スピード感・ゲーム感・カジュアル感を足す更新です。公開済みv1.2.1の静音着地・足音・移動ブラー・砂埃と、離陸確認を強化した試験を保持します。
 
@@ -34,10 +36,10 @@
 
 ## 配布物
 
-- `oboro-v1.3.0-source.zip`: 対応ソース、SDK/クライアント、README、導入・検証・ライセンス。Node.js 22.13以上（24推奨）で `npm ci` → `npm run dev`。
-- `oboro-yashiki-v1.3.0.ttvw`: 公式形式のワールド。標準クライアント単体importでは局所移動が互換ワープ足場になります。同梱クライアントは泳ぎ・無重力・壁と天井歩行を実装。
-- `oboro-v1.3.0-pages.zip`: `/tentenvworld_oboro-yashiki/` 配下へ配置する静的デモ一式。
-- `oboro-v1.3.0-courtyard-navigation.png` / `oboro-v1.3.0-jail-rescue.png` / `oboro-v1.3.0-three-room-mode.png`: 最終コミットの本番ビルドを実Chromiumで動かしたプレイ画面（CI内のローカル静的配信から撮影）。`SCREENSHOTS.json` にコミット・設定・視点・fixture・画像ハッシュを記録。
+- `oboro-v1.3.1-source.zip`: 対応ソース、SDK/クライアント、README、導入・検証・ライセンス。Node.js 22.13以上（24推奨）で `npm ci` → `npm run dev`。
+- `oboro-yashiki-v1.3.1.ttvw`: 公式形式のワールド。標準クライアント単体importでは局所移動が互換ワープ足場になります。同梱クライアントは泳ぎ・無重力・壁と天井歩行を実装。
+- `oboro-v1.3.1-pages.zip`: `/tentenvworld_oboro-yashiki/` 配下へ配置する静的デモ一式。
+- `oboro-v1.3.1-courtyard-navigation.png` / `oboro-v1.3.1-jail-rescue.png` / `oboro-v1.3.1-three-room-mode.png`: 最終コミットの本番ビルドを実Chromiumで動かしたプレイ画面（CI内のローカル静的配信から撮影）。`SCREENSHOTS.json` にコミット・設定・視点・fixture・画像ハッシュを記録。
 - `RELEASE_BUILD.json` / `SHA256SUMS` / `RELEASE_NOTES.md` / `LICENSE.txt` / `THIRD_PARTY_LICENSES.txt`。
 
 ## 検証範囲
