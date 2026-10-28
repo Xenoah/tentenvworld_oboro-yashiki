@@ -5,20 +5,20 @@ const base=process.env.OBORO_PAGES_URL||'http://localhost:5192/tentenvworld_obor
 const browser=await chromium.launch({executablePath:process.env.BROWSER||undefined,headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-dev-shm-usage','--disable-background-timer-throttling','--disable-renderer-backgrounding']})
 const results=[],errors=[],captures=[],pages=[]
 const record=(name,details={})=>{results.push({name,...details});console.log('PASS',name,JSON.stringify(details))}
-const ctx=await browser.newContext({viewport:{width:1024,height:720}})
+const ctx=await browser.newContext({viewport:{width:800,height:600}})
 const wait=(p,fn,arg=null)=>p.waitForFunction(fn,arg,{timeout:60000,polling:100})
 const state=p=>p.evaluate(()=>window.__ttvEngine.runtime.state.get('w:oboro:game'))
 const id=p=>p.evaluate(()=>window.__ttvEngine.runtime.self().peerId)
 async function open(guest=false){
  const p=await ctx.newPage();pages.push(p);p.setDefaultTimeout(60000)
  if(guest)await p.setViewportSize({width:800,height:600})
- await p.addInitScript(config=>localStorage.setItem('ttv.settings.v1',JSON.stringify(config)),{quality:guest?'low':'high',renderScale:guest?.5:.8,shadows:false,autoEnterVR:false})
+ await p.addInitScript(config=>localStorage.setItem('ttv.settings.v1',JSON.stringify(config)),{quality:'low',renderScale:.5,shadows:false,autoEnterVR:false})
  p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Browser page crashed'));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)})
  const started=Date.now();await p.goto(new URL('play/?debug=1',base).href)
  // Shader startup on concurrent software renderers is separate from gameplay waits.
  // Keep the same ready condition; only the startup budget matches the four-client suite.
  await p.waitForFunction(()=>window.__oboro&&window.__ttvEngine?.interactables.size>15,null,{timeout:process.env.CI==='true'?180000:90000,polling:100})
- record('client scene ready',{guest,elapsedMs:Date.now()-started,quality:guest?'low':'high',renderScale:guest?.5:.8,interactables:await p.evaluate(()=>window.__ttvEngine.interactables.size)})
+ record('client scene ready',{guest,elapsedMs:Date.now()-started,quality:'low',renderScale:.5,interactables:await p.evaluate(()=>window.__ttvEngine.interactables.size)})
  return p
 }
 async function tp(p,pos,yaw=0){await p.evaluate(({pos,yaw})=>window.__ttvEngine.runtime.teleport(pos,yaw),{pos,yaw});await wait(p,pos=>{const e=window.__ttvEngine;return !e.pendingTeleport&&Math.hypot(e.player.position.x-pos[0],e.player.position.z-pos[2])<.3},pos);await p.evaluate(()=>document.activeElement?.blur())}
@@ -62,6 +62,6 @@ try{
  await tp(a,[0,.1,15.3]);await walk(a,[0,16.1],'won');await wait(a,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase==='won');const won=await state(a);assert.equal(won.keys.length,3);assert.equal(won.splits.length,3);assert.equal(won.bonus,60);assert.ok(won.score>0);record('generated three-room puzzle order, pickups, bonus/splits and actual escape resolve 疾風 win',{seed:won.seed,keys:won.keys,score:won.score})
 
  assert.equal(errors.length,0,errors.join('\n'))
- const screenshotMetadata=JSON.stringify({version:JSON.parse(readFileSync('package.json','utf8')).version,commit:build.commit,buildDirty:build.dirty,capturedAt:new Date().toISOString(),url:base,execution:'Real Chromium, local static release build; public URL not tested',viewport:[1024,720],quality:'high',renderScale:.8,shadows:false,captures},null,2)
+ const screenshotMetadata=JSON.stringify({version:JSON.parse(readFileSync('package.json','utf8')).version,commit:build.commit,buildDirty:build.dirty,capturedAt:new Date().toISOString(),url:base,execution:'Real Chromium, local static release build; public URL not tested',viewport:[800,600],quality:'low',renderScale:.5,shadows:false,captures},null,2)
  writeFileSync(`${out}/casual-screenshots.json`,screenshotMetadata);writeFileSync(`${out}/screenshots.json`,screenshotMetadata)
 }catch(e){errors.push(String(e));for(const p of pages.filter(p=>!p.isClosed()))console.error('Casual failure',await p.evaluate(()=>{const e=window.__ttvEngine;return {pose:e?.localPose(),interactables:e?.interactables.size,layoutHook:!!window.__oboro,perf:window.__ttvPerf,state:e?.runtime.state.get('w:oboro:game'),body:document.body.innerText.slice(0,1000)}}).catch(()=>null));throw e}finally{writeFileSync(`${out}/casual-results.json`,JSON.stringify({testedAt:new Date().toISOString(),fixtures:'teleport between test sections; encounter enemy positions, clock and protection. Movement, pickups, capture, rescue and restart use real code.',results,errors},null,2));await browser.close()}

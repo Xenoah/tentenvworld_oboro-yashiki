@@ -34,12 +34,13 @@ export function Combat({ state:s, sound, materials:m }: { state:GameState; sound
   },[rt,id])
   useEffect(()=>{seq.current=0;hand.current=false;setFeedback('J / 木刀：近くの忍者を正面に捉える');if(pulse.current){pulse.current.getAnimations().forEach(a=>a.cancel());pulse.current.style.opacity='0'}},[s.run,s.phase])
   useEffect(()=>{if(effect===0)pulse.current?.getAnimations().forEach(a=>a.cancel())},[effect])
-  const prev=useRef({run:s.run,hurt:v.hurtAt,attack:v.attackAt})
+  const prev=useRef({run:s.run,hurt:v.hurtAt,attack:v.attackAt,hp:v.hp})
   useEffect(()=>{
     const before=prev.current, now=rt.clock().now()
     if(before.run===s.run&&v.hurtAt>before.hurt&&now-v.hurtAt<3000){if(!gl.xr.isPresenting&&effect>0){pulse.current?.getAnimations().forEach(a=>a.cancel());pulse.current?.animate([{opacity:effect},{opacity:0}],{duration:1200,easing:'ease-out'})}setFeedback(v.hp>0?`被弾 −${s.difficulty==='easy'?35:50} HP。距離を取ろう`:'HP 0 — 捕縛');if(sound)play(rt.audioListener(),'alert')}
     if(before.run===s.run&&v.attackAt>before.attack&&now-v.attackAt<1500){const strike=s.strikes?.find(e=>e.by===id&&e.at===v.attackAt);setFeedback(strike?.hit!=null?'命中！ 続けてひるませ、退路を作ろう':'空振り。正面2.4m以内を狙おう');if(sound)play(rt.audioListener(),'tick')}
-    prev.current={run:s.run,hurt:v.hurtAt,attack:v.attackAt}
+    if(before.run===s.run&&before.hp===0&&v.hp>0)setFeedback('救出！ HP・気力が回復した')
+    prev.current={run:s.run,hurt:v.hurtAt,attack:v.attackAt,hp:v.hp}
   },[v.hurtAt,v.attackAt,s.run,s.strikes,s.difficulty,v.hp,rt,id,sound,effect,gl])
   useFrame(()=>{
     const now=rt.clock().now(), a=live.current,b=a.vitals?.[id], active=a.phase==='running'&&now>=a.startedAt&&!a.jailed?.[id]

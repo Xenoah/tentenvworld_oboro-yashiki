@@ -1,6 +1,8 @@
-# 朧の屋敷 — OBORO v1.4.0
+# 朧の屋敷 — OBORO v1.4.1
 
 木刀・HP・スタミナを追加しました。忍者をひるませて逃げ道を作り、気力を残して五つの印を集めてください。v1.3.1の五印、特殊移動、静音着地、砂埃、照明・ベイク、難易度別の牢救出を保持しています。
+
+v1.4.0タグは保持。Releaseの高画質同時描画でゲスト初期化が180秒を超えたため、牢救出を含む機能試験は両タブlowに統一しました。救出・同期・勝敗の条件を維持し、高画質の実画像は別の1画面試験で撮影します。また救出後に残っていた「HP 0 — 捕縛」の説明を回復表示へ更新しました。
 
 ## 遊び方と変更
 
@@ -16,7 +18,7 @@
 
 ## 配布物
 
-`oboro-v1.4.0-source.zip`、`oboro-yashiki-v1.4.0.ttvw`、`oboro-v1.4.0-pages.zip`、実プレイ画像3枚（wood-sword / stamina-recovery / shared-health）、`SCREENSHOTS.json`、`RELEASE_BUILD.json`、`SHA256SUMS`、この説明、AGPLと第三者ライセンスです。画像は同じ最終コミットの本番ビルドを実Chromiumで動かして撮影。撮影用の位置・敵配置fixtureはmetadataへ記録します。
+`oboro-v1.4.1-source.zip`、`oboro-yashiki-v1.4.1.ttvw`、`oboro-v1.4.1-pages.zip`、実プレイ画像3枚（wood-sword / stamina-recovery / shared-health）、`SCREENSHOTS.json`、`RELEASE_BUILD.json`、`SHA256SUMS`、この説明、AGPLと第三者ライセンスです。画像は同じ最終コミットの本番ビルドを実Chromiumで動かして撮影。撮影用の位置・敵配置fixtureはmetadataへ記録します。
 
 ## 検証と制限
 
