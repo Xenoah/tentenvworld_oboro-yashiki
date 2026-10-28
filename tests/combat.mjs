@@ -45,7 +45,7 @@ try{
  // A second live attack reaches HP0 -> existing jail; teammate rescues and restores both bars.
  await tp(b,[6,.1,0]);await a.evaluate(bid=>{const r=window.__ttvEngine.runtime,s=structuredClone(r.state.get('w:oboro:game'));s.protectedUntil[bid]=0;s.enemies[0]={pos:[6,0,-.9],target:null,alertAt:0,waypoint:0,mode:'patrol',yaw:0};r.state.set('w:oboro:game',s)},bid)
  await wait(b,bid=>!!window.__ttvEngine.runtime.state.get('w:oboro:game').jailed[bid],bid);assert.equal((await vital(b)).hp,0)
- await tp(a,[-12.8,.1,10]);await wait(b,()=>{const r=window.__ttvEngine.runtime,s=r.state.get('w:oboro:game');return !s.jailed[r.self().peerId]&&s.vitals[r.self().peerId].hp===100});assert.equal((await vital(b)).stamina,100);record('second normal hit captures at HP0; teammate lock rescue restores HP/stamina')
+ await tp(a,[-12.8,.1,10]);await wait(b,()=>{const r=window.__ttvEngine.runtime,s=r.state.get('w:oboro:game');return !s.jailed[r.self().peerId]&&s.vitals[r.self().peerId].hp===100});assert.equal((await vital(b)).stamina,100);await b.getByTestId('combat-feedback').filter({hasText:'HP・気力が回復'}).waitFor();record('second normal hit captures at HP0; teammate lock rescue restores HP/stamina')
  const c=await open('low');await wait(c,bid=>window.__ttvEngine.runtime.state.get('w:oboro:game').vitals[bid]?.hp===100,bid);assert.equal((await state(c)).captures,1)
  await a.close();await wait(b,()=>window.__ttvEngine.runtime.hostId()===window.__ttvEngine.runtime.self().peerId);assert.equal((await vital(b)).hp,100);record('third tab receives health snapshot; elected replacement host preserves it')
  await timeout(b);await b.getByTestId('start').click();await wait(c,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').run===2)
