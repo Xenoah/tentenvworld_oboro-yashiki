@@ -3,7 +3,7 @@ import { useLoader, useThree } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useWorldEnv } from '@tentenv/sdk'
 import * as T from 'three'
-import { buildArchitectureGeometry } from './geometry'
+import { buildArchitectureGeometry, COLLISION_BOXES } from './geometry'
 import { applyBakedLighting } from './bakedLighting'
 import bakeMeta from './bake-meta.json'
 import type { V3 } from './game'
@@ -57,21 +57,6 @@ export function Architecture({materials:m,shading=true}:{materials:Materials;sha
 }
 
 function Collision(){
-  const boxes: {p:V3;s:V3}[] = [
-    // Ground excludes the pool rectangle, providing real underwater depth.
-    {p:[5.8,-.28,-1],s:[32.4,.5,42]}, {p:[-16.3,-.28,4.2],s:[11.8,.5,18.6]},
-    {p:[-20.4,-.28,-18],s:[3.2,.5,14]}, {p:[-14,-.28,-24.7],s:[9,.5,2.4]},
-    {p:[-14,-3.24,-18],s:[8,.3,8]},
-    {p:[-18.2,-1.3,-18],s:[.4,3.5,9]}, {p:[-9.8,-1.3,-18],s:[.4,3.5,9]},
-    {p:[-14,-1.3,-22.2],s:[8.4,3.5,.4]}, {p:[-14,-1.3,-13.8],s:[8.4,3.5,.4]},
-    {p:[0,-.02,-12],s:[39,.15,3]},
-    {p:[16,3.25,3],s:[4,.3,3.2]},
-    {p:[-19,1.8,0],s:[.2,3.6,12]}, {p:[-14,1.8,-6],s:[10,3.6,.2]}, {p:[-14,1.8,6],s:[10,3.6,.2]},
-    {p:[9.5,3,-20],s:[.24,6,10]}, {p:[20.5,3,-20],s:[.2,6,10]}, {p:[15,6,-20],s:[11,.2,10]},
-    {p:[-4.5,3.7,-20],s:[.18,7.4,10]}, {p:[4.5,3.7,-20],s:[.18,7.4,10]}, {p:[0,3.7,-25],s:[9,7.4,.18]},
-    {p:[-21.6,1.2,-2],s:[.35,2.4,41]}, {p:[21.6,1.2,-2],s:[.35,2.4,41]}, {p:[0,1.3,-26],s:[43.4,2.6,.35]},
-    {p:[-1.5,.85,-.7],s:[2.2,1.7,4.2]}, {p:[4.6,.85,-5.2],s:[2.3,1.7,2.5]}, {p:[-7.2,.8,3],s:[1.3,1.6,2]},
-  ]
-  for(let i=0;i<7;i++)boxes.push({p:[-11,-.25-i*.43,-13.4-i*.5],s:[1.8,.3,.65]})
+  const boxes=COLLISION_BOXES
   return <RigidBody type="fixed" colliders={false}>{boxes.map((b,i)=><CuboidCollider key={i} args={b.s.map(v=>v/2) as V3} position={b.p}/>)}</RigidBody>
 }

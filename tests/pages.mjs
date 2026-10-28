@@ -16,7 +16,8 @@ try{
  assert.ok(p.url().includes('/play/'));await p.getByTestId('start').click();await p.getByTestId('message').filter({hasText:'探索開始'}).waitFor({timeout:25000})
  await p.screenshot({path:`${output}/landing-to-play.png`});await p.reload();await p.getByTestId('start').waitFor({timeout:60000})
  assert.equal(await p.evaluate(()=>window.__micRequests),0)
+ assert.equal(await p.evaluate(()=>window.__oboro),undefined,'layout debugging is absent without debug=1')
  assert.equal(errors.length,0,errors.join('\n'))
  writeFileSync(`${output}/smoke-results.json`,JSON.stringify({url:base,landingToPlay:true,reload:true,errors},null,2))
 }finally{await browser.close()}
-for(const script of ['tests/e2e.mjs','tests/traversal.mjs','tests/pages-visual.mjs','tests/graphics-fallback.mjs','tests/lighting.mjs','tests/drag-look.mjs','tests/movement-sync.mjs','tests/stealth-movement.mjs'])execFileSync(process.execPath,[script],{stdio:'inherit',env:{...process.env,OBORO_TEST_URL:new URL('play/?debug=1',base).href,OBORO_EVIDENCE_DIR:output}})
+for(const script of ['tests/e2e.mjs','tests/traversal.mjs','tests/pages-visual.mjs','tests/graphics-fallback.mjs','tests/lighting.mjs','tests/drag-look.mjs','tests/movement-sync.mjs','tests/stealth-movement.mjs','tests/casual.mjs'])execFileSync(process.execPath,[script],{stdio:'inherit',env:{...process.env,OBORO_TEST_URL:new URL('play/?debug=1',base).href,OBORO_EVIDENCE_DIR:output}})

@@ -1,10 +1,10 @@
 {
   "version": 1,
   "format": "RGBA8: RGB static diffuse irradiance / 8, A distance-weighted ambient visibility",
-  "geometryHash": "3c53be78005b26ef9ca9b7c2626f15f5d29a9f6c923c0e866453553356ed7097",
+  "geometryHash": "bd6fbb8f6139ba100432e22cde399393b7835c6c735d3b129cf291be16539810",
   "generatorHash": "ac60cfff643cfb1a2077098c540e936419f8b190493ae612d4cd2775d4f8b123",
-  "sha256": "1f4e718155bbcc900132c1eb1d70490684b4c6c16e97dd7535729ccaf58b6923",
-  "bytes": 933732,
+  "sha256": "cf6de56aee4fb04e0e91e03ee5150f1e61729832c3384f0c4f753fe171cb2ac9",
+  "bytes": 995940,
   "samples": 24,
   "radius": 2.4,
   "lightScale": 8,
@@ -89,82 +89,82 @@
   "meshes": [
     {
       "name": "stone",
-      "vertices": 30984,
+      "vertices": 38376,
       "offset": 0
     },
     {
       "name": "gravel",
       "vertices": 8052,
-      "offset": 123936
+      "offset": 153504
     },
     {
       "name": "plaster",
-      "vertices": 5688,
-      "offset": 156144
+      "vertices": 6972,
+      "offset": 185712
     },
     {
       "name": "roof",
-      "vertices": 50172,
-      "offset": 178896
+      "vertices": 51048,
+      "offset": 213600
     },
     {
       "name": "cedar",
-      "vertices": 17148,
-      "offset": 379584
+      "vertices": 17292,
+      "offset": 417792
     },
     {
       "name": "darkwood",
-      "vertices": 63756,
-      "offset": 448176
+      "vertices": 66612,
+      "offset": 486960
     },
     {
       "name": "paper",
-      "vertices": 13416,
-      "offset": 703200
+      "vertices": 16416,
+      "offset": 753408
     },
     {
       "name": "red",
       "vertices": 276,
-      "offset": 756864
+      "offset": 819072
     },
     {
       "name": "tatami",
       "vertices": 3648,
-      "offset": 757968
+      "offset": 820176
     },
     {
       "name": "cloth",
       "vertices": 2928,
-      "offset": 772560
+      "offset": 834768
     },
     {
       "name": "brass",
       "vertices": 7260,
-      "offset": 784272
+      "offset": 846480
     },
     {
       "name": "glow",
       "vertices": 1008,
-      "offset": 813312
+      "offset": 875520
     },
     {
       "name": "moss",
       "vertices": 10572,
-      "offset": 817344
+      "offset": 879552
     },
     {
       "name": "leaf",
       "vertices": 18525,
-      "offset": 859632
+      "offset": 921840
     }
   ],
   "statistics": {
-    "rays": 1985158,
-    "uniqueSamples": 80934,
+    "rays": 2107532,
+    "uniqueSamples": 85898,
     "aoMin": 0.12986114234931956,
     "aoMax": 1,
-    "aoMean": 0.6527706268937966,
-    "litSamples": 10381
+    "aoMean": 0.6421641958211187,
+    "litSamples": 10896
   },
   "limitations": [
     "Static geometry only; rotating door, enemies, players and water are not baked.",
