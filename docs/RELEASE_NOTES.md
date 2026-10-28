@@ -1,4 +1,4 @@
-# 朧の屋敷 — OBORO v1.2.0
+# 朧の屋敷 — OBORO v1.2.1
 
 ダッシュとジャンプに控えめな周辺ブラーを追加し、着地の音が忍者の捜索につながるようになりました。下降中、地面まで約75cmで **X** を一度押すと静音着地。早押しや押し忘れでは足音が響きます。
 
@@ -11,12 +11,14 @@
 
 v1.1のベイク・照明・素材と五印の脱出ゲームを維持しています。旧タグと配布物は変更しません。攻撃・HP・スタミナとVC音響は後続版の対象です。
 
+低FPSの自動試験ではワープ直後の接地情報を待ち、実際に35cm以上跳躍したことを確認してから着地を検査します。このfix版ではゲーム本体の移動・捕縛・聴覚条件は変更していません。
+
 ## 配布物
 
-- `oboro-v1.2.0-source.zip`: 対応ソース、SDK/クライアント、README、導入・検証・ライセンス。Node.js 22.13以上（24推奨）で `npm ci` → `npm run dev`。
-- `oboro-yashiki-v1.2.0.ttvw`: 公式形式のワールド。標準クライアント単体importでは局所移動が互換ワープ足場になります。同梱クライアントは泳ぎ・無重力・壁と天井歩行を実装。
-- `oboro-v1.2.0-pages.zip`: `/tentenvworld_oboro-yashiki/` 配下へ配置する静的デモ一式。
-- `oboro-v1.2.0-sprint.png` / `oboro-v1.2.0-quiet-landing.png` / `oboro-v1.2.0-ninja-search.png`: 最終コミットの本番ビルドを実Chromiumで動かしたプレイ画面。CI内のローカル静的配信から撮影し、公開URLの撮影ではありません。`SCREENSHOTS.json` にコミット・設定・視点・fixture・画像ハッシュを記録。
+- `oboro-v1.2.1-source.zip`: 対応ソース、SDK/クライアント、README、導入・検証・ライセンス。Node.js 22.13以上（24推奨）で `npm ci` → `npm run dev`。
+- `oboro-yashiki-v1.2.1.ttvw`: 公式形式のワールド。標準クライアント単体importでは局所移動が互換ワープ足場になります。同梱クライアントは泳ぎ・無重力・壁と天井歩行を実装。
+- `oboro-v1.2.1-pages.zip`: `/tentenvworld_oboro-yashiki/` 配下へ配置する静的デモ一式。
+- `oboro-v1.2.1-sprint.png` / `oboro-v1.2.1-quiet-landing.png` / `oboro-v1.2.1-ninja-search.png`: 最終コミットの本番ビルドを実Chromiumで動かしたプレイ画面。CI内のローカル静的配信から撮影し、公開URLの撮影ではありません。`SCREENSHOTS.json` にコミット・設定・視点・fixture・画像ハッシュを記録。
 - `RELEASE_BUILD.json` / `SHA256SUMS` / `RELEASE_NOTES.md` / `LICENSE.txt` / `THIRD_PARTY_LICENSES.txt`。
 
 ## 操作と検証範囲
