@@ -1,5 +1,5 @@
 import { Missions } from './Missions'
-import { checkpoint } from './missions'
+import { checkpoint, ROOMS } from './missions'
 // Based on TenTenV's official worlds/template/src/index.tsx (AGPL-3.0-only).
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -59,6 +59,14 @@ function useGame(){
     if(last.current.run===state.run&&last.current.stars<state.stars.length)play(rt.audioListener(),'star')
     last.current={run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length}
   },[state.run,state.phase,state.keys.length,state.stars.length])
+  const previousRoom=useRef({run:state.run,attempt:state.mission?.attempt,stage:state.mission?.stage})
+  useEffect(()=>{
+    const previous=previousRoom.current,m=state.mission
+    if(state.mode==='mission'&&state.phase==='running'&&m&&previous.run===state.run&&previous.attempt!==m.attempt){
+      setMessage(m.stage>=5?'夜風の庭へ出た。忍者を避け、南の門へ。':previous.stage===m.stage?'この部屋から再挑戦。達成済みの印は保持。':`${ROOMS[m.stage].name}へ。${ROOMS[m.stage].subtitle}。`)
+    }
+    previousRoom.current={run:state.run,attempt:state.mission?.attempt,stage:state.mission?.stage}
+  },[state.run,state.phase,state.mode,state.mission?.attempt])
   // The cell: teleport in when caught (casual difficulties), out when freed.
   const jailed=!!state.jailed?.[rt.self().peerId],cell=useRef({run:state.run,jailed:false})
   useEffect(()=>{

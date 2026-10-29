@@ -25,7 +25,7 @@ const d=(a:V3,b:V3)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2])
 const level=(difficulty:Difficulty)=>difficulty==='easy'?0:difficulty==='normal'?1:2
 export const roomSeconds=(stage:number,difficulty:Difficulty)=>ROOMS[stage]?.seconds[level(difficulty)]??180
 export function freshMission(now:number,difficulty:Difficulty,stage=0,attempt=0,retries=0):MissionState {
- return {stage,attempt,openedAt:now,deadline:now+roomSeconds(stage,difficulty)*1000,cleared:false,failed:false,progress:0,mistakes:0,lastBeat:-1,deliveries:[],carried:{},charges:[0,0,0],retries,notice:'目標を確認して挑戦しよう'}
+ return {stage,attempt,openedAt:now,deadline:now+roomSeconds(stage,difficulty)*1000,cleared:false,failed:false,progress:0,mistakes:0,lastBeat:-1,deliveries:[],carried:{},charges:[0,0,0],retries,notice:stage>=5?'忍者を避け、南の門へ':'目標を確認して挑戦しよう'}
 }
 export const inMissionRoom=(stage:number,p:V3)=>{
  const b=ROOMS[stage]?.bounds;return !!b&&p.every(Number.isFinite)&&p[0]>=b[0]&&p[0]<=b[1]&&p[2]>=b[2]&&p[2]<=b[3]&&p[1]>=b[4]&&p[1]<=b[5]
