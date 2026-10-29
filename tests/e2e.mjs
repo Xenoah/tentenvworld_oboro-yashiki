@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import assert from 'node:assert/strict'
 import {writeFileSync,mkdirSync} from 'node:fs'
@@ -10,7 +11,7 @@ const browser=await chromium.launch({executablePath:process.env.BROWSER||undefin
 const ctx=await browser.newContext({viewport:process.env.CI==='true'?{width:800,height:600}:{width:1280,height:850}}),pages=[],errors=[],results=[],networkFailures=[]
 await ctx.addInitScript(()=>localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'low',renderScale:.5,shadows:false,autoEnterVR:false})))
 const record=(name,details={})=>{results.push({name,...details});console.log('PASS',name,JSON.stringify(details))}
-async function open(){const p=await ctx.newPage();pages.push(p);p.setDefaultTimeout(stateTimeout);p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Browser page crashed'));p.on('requestfailed',r=>networkFailures.push(`${r.failure()?.errorText} ${r.url()}`));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(url);await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.has('w:oboro:game')&&window.__ttvEngine.interactables.size>15,{},{timeout:startupTimeout,polling:100});return p}
+async function open(){const p=await ctx.newPage();pages.push(p);p.setDefaultTimeout(stateTimeout);p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Browser page crashed'));p.on('requestfailed',r=>networkFailures.push(`${r.failure()?.errorText} ${r.url()}`));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(url);await selectLegacy(p);await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.has('w:oboro:game')&&window.__ttvEngine.interactables.size>15,{},{timeout:startupTimeout,polling:100});return p}
 const state=p=>p.evaluate(()=>window.__ttvEngine.runtime.state.get('w:oboro:game'))
 const pose=p=>p.evaluate(()=>window.__ttvEngine.localPose().position)
 async function tp(p,pos,yaw=0,pitch=0){await p.evaluate(({pos,yaw,pitch})=>{const e=window.__ttvEngine;e.runtime.teleport(pos,yaw);e.player.pitch=pitch},{pos,yaw,pitch});await p.waitForFunction(pos=>{const e=window.__ttvEngine,p=e.player.position;return !e.pendingTeleport&&Math.abs(p.x-pos[0])<.6&&Math.abs(p.z-pos[2])<.6&&Math.abs(p.y-pos[1])<1},pos,{timeout:stateTimeout,polling:100})}

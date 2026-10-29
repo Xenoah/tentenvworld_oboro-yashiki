@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
@@ -10,7 +11,7 @@ try{
   await context.addInitScript(()=>localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'high',renderScale:.7,shadows:true,autoEnterVR:false})))
   const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)})
   const buildResponse=await p.request.get(new URL('build.json',base).href);assert.ok(buildResponse.ok());const build=await buildResponse.json()
-  await p.goto(new URL('play/?debug=1',base).href);await p.getByTestId('start').click({timeout:120000})
+  await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);await p.getByTestId('start').click({timeout:120000})
   await p.getByTestId('visual-settings').click();await p.getByTestId('glow-off').click()
   const mode=()=>p.locator('canvas').first().getAttribute('data-oboro-glow')
   await p.waitForFunction(()=>document.querySelector('canvas')?.dataset.oboroGlow==='off',null,{polling:100})

@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import { chromium } from 'playwright-core'
 import { writeFileSync,mkdirSync } from 'node:fs'
 import assert from 'node:assert/strict'
@@ -12,7 +13,7 @@ try{
   const ctx=await browser.newContext(mobile?{viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1,userAgent:'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36'}:{viewport:softwareCI?{width:1024,height:720}:{width:1440,height:960}})
   await ctx.addInitScript(({mobile,softwareCI})=>localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:mobile?'low':softwareCI?'medium':'high',renderScale:mobile?.5:softwareCI?.7:1,shadows:!mobile&&!softwareCI,autoEnterVR:false})),{mobile,softwareCI})
   const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)})
-  await p.goto(new URL('play/?debug=1',base).href);await p.getByTestId('start').waitFor({timeout:60000})
+  await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);await p.getByTestId('start').waitFor({timeout:60000})
   if(mobile){const b=await p.getByTestId('start').boundingBox();assert.ok(b.x>=0&&b.x+b.width<=390);await p.getByTestId('start').tap();await p.locator('.touch-stick').waitFor()}
   else await p.getByTestId('start').click()
   await p.waitForFunction(()=>window.__ttvEngine?.runtime.state.get('w:oboro:game')?.phase==='running')

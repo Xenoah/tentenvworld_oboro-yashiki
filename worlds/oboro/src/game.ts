@@ -1,3 +1,4 @@
+import { checkpoint, freshMission, inMissionRoom, missionCommand, MISSION_LIMIT, ROOMS, tickMission, type MissionState } from './missions'
 import { ensureCombat, freshVital, observeVitals, restoreVital, strike, COMBAT, NINJA_DAMAGE, type Vital, type Strike } from './combat'
 import { observeMotion, quietWindow, type MotionTrack, type Disturbance } from './movement'
 import { layoutFor, VALVE_SPOTS, type Layout } from './layout'
@@ -9,9 +10,9 @@ export const DIFFICULTIES = {
   normal: { label: '忍び', limit: 300, bonus: 30, speed: 1.65, sight: 8, fov: 110, windup: 2.0, multiplier: 1.5 },
   hard: { label: '上忍', limit: 240, bonus: 20, speed: 2.2, sight: 10, fov: 120, windup: 1.4, multiplier: 2 },
 }
-export type Mode = 'standard' | 'sprint'
+export type Mode = 'mission' | 'standard' | 'sprint'
 /** 疾風: three random rooms, three minutes. */
-export const MODES = { standard: { label: '通常' }, sprint: { label: '疾風', limit: 180, bonus: 20 } } as const
+export const MODES = { mission: {label:'歪みの部屋'}, standard: { label: '旧・探索' }, sprint: { label: '疾風', limit: 180, bonus: 20 } } as const
 /** Casual capture: on 見習い/忍び a caught player goes to the cell; a teammate touching the lock (or the timer) frees them. */
 export const JAIL: V3 = [-15.6, .1, 10], JAIL_LOCK: V3 = [-13.1, 0, 10], JAIL_EXIT: V3 = [-12.4, .1, 10]
 export const JAIL_TIME = { easy: 12000, normal: 20000, hard: 0 }, JAIL_TIME_TEAM = 45000, CAPTURE_PENALTY = 200
@@ -38,6 +39,7 @@ export const SMOKE_SPOTS: V3[] = [[-7.6, 0, -9.6], [8.2, 0, 1], [-7.4, 0, 6.6]]
 export const SMOKE_RADIUS = 6, SMOKE_STUN = 3000, CLOSE_SENSE = 1.8
 export interface Enemy { pos: V3; target: string | null; alertAt: number; waypoint: number; mode: 'patrol' | 'chase' | 'warning' | 'investigate' | 'search' | 'stunned'; heardId?:number; searchUntil?:number; investigate?:V3; reverse?:boolean; yaw?:number; stunUntil?:number; guard?:number; hitAt?:number }
 export interface GameState {
+  mission: MissionState | null;
   vitals: Record<string,Vital>; strikes: Strike[]; combatSerial: number;
   version: 1; run: number; phase: 'lobby' | 'running' | 'won' | 'lost'; difficulty: Difficulty;
   startedAt: number; updatedAt: number; endedAt: number; keys: string[]; rune: number; door: boolean;
@@ -54,6 +56,7 @@ export interface GameState {
 }
 export type Command = { run: number; kind: string; value?: string; seq?: number }
 export const initialState = (run = 0, difficulty: Difficulty = 'normal', mode: Mode = 'standard'): GameState => ({
+  mission: mode==='mission'?freshMission(0,difficulty):null,
   vitals: {}, strikes: [], combatSerial: 0,
   version: 1, run, phase: 'lobby', difficulty, startedAt: 0, updatedAt: 0, endedAt: 0, keys: [], rune: 0, door: false,
   valves: [], stars: [], recoveries: 0, score: 0, reason: '', enemies: [
@@ -63,7 +66,7 @@ export const initialState = (run = 0, difficulty: Difficulty = 'normal', mode: M
 })
 export const distance = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 export const safe = (p: V3) => p[2] > 8 || p[1] > 1.8 || p[1] < -1 || p[2] < -13 || Math.abs(p[0]) > 9
-export const baseLimit = (s: Pick<GameState, 'difficulty' | 'mode'>) => s.mode === 'sprint' ? MODES.sprint.limit : DIFFICULTIES[s.difficulty].limit
+export const baseLimit = (s: Pick<GameState, 'difficulty' | 'mode'>) => s.mode === 'mission' ? MISSION_LIMIT[s.difficulty] : s.mode === 'sprint' ? MODES.sprint.limit : DIFFICULTIES[s.difficulty].limit
 export const sealBonus = (s: Pick<GameState, 'difficulty' | 'mode'>) => s.mode === 'sprint' ? MODES.sprint.bonus : DIFFICULTIES[s.difficulty].bonus
 export const timeLimit = (s: GameState) => baseLimit(s) + (s.bonus ?? 0)
 /** Seals this round needs to open the gate (all five, or the 疾風 three). */
@@ -71,10 +74,11 @@ export const required = (s: GameState): string[] => s.mode === 'sprint' ? layout
 export const ready = (s: GameState) => required(s).every(id => s.keys.includes(id))
 export const elapsed = (s: GameState, now: number) => Math.max(0, now - s.startedAt) / 1000
 export const remaining = (s: GameState, now: number) => Math.max(0, timeLimit(s) - elapsed(s, now))
-export const scoreFor = (s: GameState, now: number) => Math.max(0, Math.round((s.keys.length * 1000 + (s.coinPoints ?? 0) + (s.phase === 'won' ? 3000 + remaining(s, now) * 4 : 0) - s.recoveries * 150 - (s.captures ?? 0) * CAPTURE_PENALTY) * DIFFICULTIES[s.difficulty].multiplier))
+export const scoreFor = (s: GameState, now: number) => Math.max(0, Math.round((s.keys.length * 1000 + (s.coinPoints ?? 0) + (s.phase === 'won' ? 3000 + remaining(s, now) * 4 : 0) - s.recoveries * 150 - (s.mission?.retries??0)*50 - (s.captures ?? 0) * CAPTURE_PENALTY) * DIFFICULTIES[s.difficulty].multiplier))
 export const layoutOf = (s: GameState): Layout => layoutFor(s.seed ?? 0)
 /** Where an action really is this round (valves, seals and coins move with the seed). */
 export function actionPos(s: GameState, kind: string): V3 | undefined {
+  if(s.mode==='mission'&&['start','restart','difficulty','mode'].includes(kind))return checkpoint(s)
   const l = layoutOf(s)
   if (kind.startsWith('valve:')) { const slot = l.valves[Number(kind.slice(6))]; return slot === undefined ? undefined : VALVE_SPOTS[slot].pos }
   if (kind.startsWith('key:')) return KEYS.some(k => k.id === kind.slice(4)) ? l.keyPos[kind.slice(4)] : undefined
@@ -88,20 +92,23 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   if (pos && distance(pos, player.pos) > (['start','restart','difficulty','mode'].includes(cmd.kind)?6.4:3.4)) return state
   const smokeSpot = cmd.kind.startsWith('smoke:take:') ? SMOKE_SPOTS[Number(cmd.kind.slice(11))] : undefined
   if (smokeSpot && distance(smokeSpot, player.pos) > 2.6) return state
-  if (!pos && !smokeSpot && !['recover', 'brace', 'smoke:use', 'attack'].includes(cmd.kind)) return state
+  if (!pos && !smokeSpot && !['recover', 'brace', 'smoke:use', 'attack', 'mission'].includes(cmd.kind)) return state
   const s: GameState = structuredClone(state);ensureCombat(s);s.motion??={};s.disturbances??=[];s.noiseSerial??=0
   if (cmd.kind === 'difficulty' && host && s.phase !== 'running' && cmd.value && cmd.value in DIFFICULTIES) { s.difficulty = cmd.value as Difficulty; return s }
-  if (cmd.kind === 'mode' && host && s.phase !== 'running' && cmd.value && cmd.value in MODES) { s.mode = cmd.value as Mode; return s }
+  if (cmd.kind === 'mode' && host && s.phase !== 'running' && cmd.value && cmd.value in MODES) { s.mode = cmd.value as Mode;s.mission=s.mode==='mission'?freshMission(0,s.difficulty):null; return s }
   if ((cmd.kind === 'start' && s.phase === 'lobby') || (cmd.kind === 'restart' && (s.phase === 'lost' || s.phase === 'won'))) {
     if (!host) return state
     const next = initialState(s.run + 1, s.difficulty, s.mode ?? 'standard')
     next.seed = (Math.floor(now) ^ (s.run + 1) * 2654435761) >>> 0 || 1
-    next.vitals[player.id] = freshVital(); next.phase = 'running'; next.startedAt = now + COUNTDOWN; next.updatedAt = now; next.roster = [player.id]; next.protectedUntil[player.id] = now + COUNTDOWN + 12000
+    next.vitals[player.id] = freshVital(); next.phase = 'running'; next.startedAt = now + COUNTDOWN; next.updatedAt = now; next.roster = [player.id]; if(next.mode==='mission')next.mission=freshMission(next.startedAt,next.difficulty); next.protectedUntil[player.id] = now + COUNTDOWN + 12000
     return next
   }
   if (s.phase !== 'running' || now < s.startedAt) return state
   if (!s.roster.includes(player.id) || s.jailed?.[player.id]) return state
-  if (cmd.kind === 'attack') {
+  if(s.mode==='mission'&&(['rune:','valve:','star:','key:','coin:'].some(prefix=>cmd.kind.startsWith(prefix))))return state
+  if (cmd.kind === 'mission') {
+    if(s.mode!=='mission'||!missionCommand(s,player,cmd.value,cmd.seq,now,host))return state
+  } else if (cmd.kind === 'attack') {
     if (!strike(s,player,cmd.seq,now,lineOfSight)) return state
     s.serial++; return s
   } else if (smokeSpot) {
@@ -145,7 +152,7 @@ export function command(state: GameState, cmd: Command, player: Player, now: num
   } else if (cmd.kind === 'free') {
     s.jailed ??= {}; if (!Object.keys(s.jailed).length) return state
     for (const id of Object.keys(s.jailed)) { delete s.jailed[id]; restoreVital(s,id); s.protectedUntil[id] = now + 6000 }
-  } else if (cmd.kind === 'exit' && ready(s)) return finish(s, 'won', now, s.mode === 'sprint' ? '三つの印で朧の門が開いた。疾風のごとく。' : '五つの印が結ばれ、朧の門が開いた。')
+  } else if (cmd.kind === 'exit' && ready(s) && (s.mode!=='mission'||s.mission?.stage===5)) return finish(s, 'won', now, s.mode==='mission'?'歪んだ五つの部屋を抜け、夜風の庭から生還した。':s.mode === 'sprint' ? '三つの印で朧の門が開いた。疾風のごとく。' : '五つの印が結ばれ、朧の門が開いた。')
   else return state
   s.score = scoreFor(s, now); s.serial++; return s
 }
@@ -186,6 +193,10 @@ export function tick(state: GameState, players: Player[], now: number): GameStat
   if (now >= s.startedAt && remaining(s, now) <= 0) return finish(s, 'lost', now, '夜明けの鐘。任務時間が尽きた。')
   s.jailed ??= {}
   for (const [id, until] of Object.entries(s.jailed)) if (now >= until || !s.roster.includes(id)) { delete s.jailed[id]; if (s.roster.includes(id)) { restoreVital(s,id); s.protectedUntil[id] = now + 6000 } }
+  if(s.mode==='mission'&&s.mission&&s.mission.stage<5){
+    if(tickMission(s,present,now,dt)){const id=ROOMS[s.mission.stage].id;if(!s.keys.includes(id)){s.keys.push(id);s.bonus+=sealBonus(s);s.splits.push({id,t:Math.round(elapsed(s,now)*10)/10});s.score=scoreFor(s,now);s.serial++}}
+    return s
+  }
   if (now - s.startedAt < 15000) return s
   s.enemies.forEach(enemy => {
     if (now < (enemy.stunUntil ?? 0)) { enemy.mode = 'stunned'; enemy.target = null; enemy.alertAt = 0; return }

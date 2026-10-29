@@ -1,10 +1,10 @@
 {
   "version": 1,
   "format": "RGBA8: RGB static diffuse irradiance / 8, A distance-weighted ambient visibility",
-  "geometryHash": "bd6fbb8f6139ba100432e22cde399393b7835c6c735d3b129cf291be16539810",
+  "geometryHash": "1b6d503d1e675282bc1b0d5eb6693c5442d6fd79da7a2f5f299ca9e1025336fc",
   "generatorHash": "ac60cfff643cfb1a2077098c540e936419f8b190493ae612d4cd2775d4f8b123",
-  "sha256": "cf6de56aee4fb04e0e91e03ee5150f1e61729832c3384f0c4f753fe171cb2ac9",
-  "bytes": 995940,
+  "sha256": "aa29df1c64e37e9d9e166f899dcdd18da4f4705a85cd4fbc0d3fdd0bb90b4d86",
+  "bytes": 1437588,
   "samples": 24,
   "radius": 2.4,
   "lightScale": 8,
@@ -84,6 +84,26 @@
       2.5,
       2.8,
       12
+    ],
+    [
+      15,
+      4.7,
+      7
+    ],
+    [
+      -14,
+      2.6,
+      -12.3
+    ],
+    [
+      0,
+      6.8,
+      -23
+    ],
+    [
+      18,
+      4.8,
+      -23
     ]
   ],
   "meshes": [
@@ -109,62 +129,62 @@
     },
     {
       "name": "cedar",
-      "vertices": 17292,
+      "vertices": 23448,
       "offset": 417792
     },
     {
       "name": "darkwood",
-      "vertices": 66612,
-      "offset": 486960
+      "vertices": 112176,
+      "offset": 511584
     },
     {
       "name": "paper",
-      "vertices": 16416,
-      "offset": 753408
+      "vertices": 70020,
+      "offset": 960288
     },
     {
       "name": "red",
       "vertices": 276,
-      "offset": 819072
+      "offset": 1240368
     },
     {
       "name": "tatami",
-      "vertices": 3648,
-      "offset": 820176
+      "vertices": 5616,
+      "offset": 1241472
     },
     {
       "name": "cloth",
-      "vertices": 2928,
-      "offset": 834768
+      "vertices": 5280,
+      "offset": 1263936
     },
     {
       "name": "brass",
       "vertices": 7260,
-      "offset": 846480
+      "offset": 1285056
     },
     {
       "name": "glow",
-      "vertices": 1008,
-      "offset": 875520
+      "vertices": 1776,
+      "offset": 1314096
     },
     {
       "name": "moss",
       "vertices": 10572,
-      "offset": 879552
+      "offset": 1321200
     },
     {
       "name": "leaf",
       "vertices": 18525,
-      "offset": 921840
+      "offset": 1363488
     }
   ],
   "statistics": {
-    "rays": 2107532,
-    "uniqueSamples": 85898,
+    "rays": 2974064,
+    "uniqueSamples": 120948,
     "aoMin": 0.12986114234931956,
     "aoMax": 1,
-    "aoMean": 0.6421641958211187,
-    "litSamples": 10896
+    "aoMean": 0.6061024223250016,
+    "litSamples": 16671
   },
   "limitations": [
     "Static geometry only; rotating door, enemies, players and water are not baked.",

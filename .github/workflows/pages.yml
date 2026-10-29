@@ -12,6 +12,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [legacy, mission]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,16 +27,19 @@ jobs:
       - run: npm run build:pages
       - run: npx playwright-core install --with-deps chromium
       - name: Browser verification under the Pages subpath
+        env:
+          OBORO_BROWSER_SUITE: ${{ matrix.suite }}
         run: |
           npm run preview:pages > /tmp/oboro-pages.log 2>&1 &
           npm run test:pages
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-validation
+          name: browser-validation-${{ matrix.suite }}
           path: evidence/pages/
           retention-days: 7
       - uses: actions/upload-pages-artifact@v3
+        if: matrix.suite == 'mission'
         with:
           path: dist-pages
   deploy:

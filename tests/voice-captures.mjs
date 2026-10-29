@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import assert from 'node:assert/strict'
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs'
@@ -7,7 +8,7 @@ const ctx=await browser.newContext({viewport:{width:1024,height:720}}),errors=[]
 await ctx.addInitScript(()=>{localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'high',renderScale:.8,shadows:false,autoEnterVR:false}));window.__micRequests=0;navigator.mediaDevices.getUserMedia=async()=>{window.__micRequests++;throw Error('No microphone permission in static demo')}})
 const p=await ctx.newPage();p.setDefaultTimeout(60000);p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)})
 try{
- await p.goto(new URL('play/?debug=1',base).href);await p.waitForFunction(()=>window.__oboro&&window.__ttvEngine?.interactables.size>15,null,{timeout:180000});const build=await(await p.request.get(new URL('build.json',base).href)).json()
+ await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);await p.waitForFunction(()=>window.__oboro&&window.__ttvEngine?.interactables.size>15,null,{timeout:180000});const build=await(await p.request.get(new URL('build.json',base).href)).json()
  await p.getByRole('button',{name:'見習い 8:00',exact:true}).click();await p.getByTestId('start').click();await p.waitForFunction(()=>{const r=window.__ttvEngine.runtime;return r.clock().now()>r.state.get('w:oboro:game').startedAt});await p.evaluate(()=>{const r=window.__ttvEngine.runtime,s=structuredClone(r.state.get('w:oboro:game'));s.protectedUntil[r.self().peerId]=r.clock().now()+600000;r.state.set('w:oboro:game',s)})
  for(const [pos,yaw,label,file,releaseScene]of [
   [[-11.7,.1,5],.55,'部屋の残響','voice-room.png','room-voice'],

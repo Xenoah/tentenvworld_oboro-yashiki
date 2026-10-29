@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import assert from 'node:assert/strict'
 import {mkdirSync,writeFileSync} from 'node:fs'
@@ -13,7 +14,7 @@ try{
  })
  const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)})
  const wait=fn=>p.waitForFunction(fn,null,{timeout:60000,polling:100}),pose=()=>p.evaluate(()=>({yaw:window.__ttvEngine.player.yaw,pitch:window.__ttvEngine.player.pitch}))
- await p.goto(new URL('play/?debug=1',base).href);await p.getByTestId('start').click({timeout:120000})
+ await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);await p.getByTestId('start').click({timeout:120000})
  await p.mouse.click(500,405);await p.getByTestId('look-help').filter({hasText:'Pointer lock unavailable'}).waitFor()
  assert.equal(await p.evaluate(()=>document.pointerLockElement),null);results.push('denied Pointer Lock shows a clear fallback without browser setting changes')
  await p.getByTestId('drag-look').click();const before=await pose()

@@ -8,11 +8,13 @@ concurrency:
   group: oboro-release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  release:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    permissions:
-      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [legacy, mission]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,16 +30,36 @@ jobs:
       - run: npm run build:pages
       - run: npx playwright-core install --with-deps chromium
       - name: Browser validation
+        env:
+          OBORO_BROWSER_SUITE: ${{ matrix.suite }}
         run: |
           npm run preview:pages > /tmp/oboro-pages.log 2>&1 &
           npm run test:pages
       - run: npm run package:release
+        if: matrix.suite == 'mission'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: release-browser-validation
+          name: release-browser-validation-${{ matrix.suite }}
           path: evidence/pages/
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: matrix.suite == 'mission'
+        with:
+          name: release-files
+          path: releases-out/
+          retention-days: 7
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: releases-out/
       - name: Publish release and assets
         env:
           GH_TOKEN: ${{ github.token }}

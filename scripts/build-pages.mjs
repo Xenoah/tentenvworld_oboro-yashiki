@@ -15,7 +15,7 @@ cpSync(join(root,'apps/client/dist'),join(out,'play'),{recursive:true})
 const files=unzipSync(readFileSync(join(root,'releases/oboro-yashiki.ttvw')))
 for(const [name,data]of Object.entries(files)){if(name.includes('..')||name.startsWith('/'))throw Error('Unsafe archive path');const path=join(out,'world',name);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,data)}
 cpSync(join(root,'web/index.html'),join(out,'index.html'))
-cpSync(join(root,'evidence/lighting/after-courtyard.png'),join(out,'courtyard.png'))
+cpSync(join(root,'evidence/missions/indoor-cover.png'),join(out,'interior.png'))
 cpSync(join(root,'releases/oboro-yashiki.ttvw'),join(out,'oboro-yashiki.ttvw'))
 cpSync(join(root,'LICENSE'),join(out,'LICENSE.txt'))
 execFileSync(process.execPath,[join(root,'scripts/collect-licenses.mjs'),join(out,'THIRD_PARTY_LICENSES.txt')],{cwd:root,stdio:'inherit'})

@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import assert from 'node:assert/strict'
 import {writeFileSync,mkdirSync} from 'node:fs'
@@ -12,7 +13,7 @@ const state=()=>p.evaluate(()=>window.__ttvEngine.runtime.state.get('w:oboro:gam
 async function tp(pos,yaw=0,pitch=0){await p.evaluate(({pos,yaw,pitch})=>{const e=window.__ttvEngine;e.runtime.teleport(pos,yaw);e.player.pitch=pitch},{pos,yaw,pitch});await p.waitForFunction(pos=>{const e=window.__ttvEngine,p=e.player.position;return !e.pendingTeleport&&Math.abs(p.x-pos[0])<.6&&Math.abs(p.z-pos[2])<.6},pos,{timeout:25000});await p.waitForTimeout(700)}
 async function click(label){await p.evaluate(label=>{const e=window.__ttvEngine,i=[...e.interactables.values()].find(i=>i.spec().label===label);if(!i)throw Error(label);i.spec().onClick({peerId:e.session.selfId,hand:'none',point:[0,0,0]})},label);await p.waitForTimeout(400)}
 try{
- await p.goto(process.env.OBORO_TEST_URL||'http://localhost:5190/?devWorld=http%3A%2F%2Flocalhost%3A5180%2F');await p.getByTestId('start').waitFor({timeout:40000});await p.waitForTimeout(1000);await p.screenshot({path:join(output,'09-arrival-high.png')});await p.getByRole('button',{name:'上忍 4:00',exact:true}).click();await p.getByTestId('start').click();await p.waitForFunction(()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase==='running')
+ await p.goto(process.env.OBORO_TEST_URL||'http://localhost:5190/?devWorld=http%3A%2F%2Flocalhost%3A5180%2F');await selectLegacy(p);await p.getByTestId('start').waitFor({timeout:40000});await p.waitForTimeout(1000);await p.screenshot({path:join(output,'09-arrival-high.png')});await p.getByRole('button',{name:'上忍 4:00',exact:true}).click();await p.getByTestId('start').click();await p.waitForFunction(()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase==='running')
  await p.waitForFunction(()=>{const rt=window.__ttvEngine.runtime;return rt.clock().now()>rt.state.get('w:oboro:game').startedAt+150},null,{timeout:30000});
  // Keep movement/architecture captures independent of encounters, including slow CI screenshot encoding.
  await p.evaluate(()=>{const rt=window.__ttvEngine.runtime,s=structuredClone(rt.state.get('w:oboro:game'));s.protectedUntil[rt.self().peerId]=rt.clock().now()+600000;rt.state.set('w:oboro:game',s)});

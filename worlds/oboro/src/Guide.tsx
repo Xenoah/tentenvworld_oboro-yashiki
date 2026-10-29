@@ -1,3 +1,4 @@
+import { missionObjective } from './missions'
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useRuntime } from '@tentenv/sdk'
@@ -15,6 +16,7 @@ const flat = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[2] - b[2])
 /** Next step toward the nearest seal still needed (or the gate). Pure, so it can be unit-tested. */
 export function objective(s: GameState, me: V3, scrollSeen: boolean, pads: boolean): Objective {
   if (s.phase !== 'running') return null
+  if(s.mode==='mission')return missionObjective(s,me)
   const l = layoutOf(s)
   if (ready(s)) return { pos: [0, 0, 16.3], label: '脱出門へ' }
   const left = required(s).filter(id => !s.keys.includes(id))
@@ -53,7 +55,7 @@ export function Guide({ state, enabled, pads, onChange }: { state: GameState; en
     if (seen.current.run !== s.run) seen.current = { run: s.run, scroll: false }
     const sc = SCROLL_SPOTS[layoutOf(s).scroll][0]; if (s.phase === 'running' && distance(me, [sc[0], me[1], sc[2]]) < 3) seen.current.scroll = true
     acc.current += dt
-    if (acc.current > .25) { acc.current = 0; const o = s.jailed?.[me2] ? null : objective(s, me, seen.current.scroll, pads); target.current = o; const key = o ? `${o.label}@${o.pos.join()}` : ''; if (key !== last.current) { last.current = key; onChange(o) } }
+    if (acc.current > .25) { acc.current = 0; const o = s.jailed?.[me2] ? null : s.mode==='mission'?missionObjective(s,me,me2):objective(s, me, seen.current.scroll, pads); target.current = o; const key = o ? `${o.label}@${o.pos.join()}` : ''; if (key !== last.current) { last.current = key; onChange(o) } }
     const o = target.current, show = enabled && !!o
     arrow.current.visible = beam.current.visible = show
     if (!show) return

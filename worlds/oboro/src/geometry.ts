@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { V3 } from './game'
 
 export type Surface = 'cedar'|'darkwood'|'tatami'|'plaster'|'paper'|'stone'|'roof'|'gravel'|'moss'|'cloth'|'brass'|'ink'|'leaf'|'glow'|'red'
-export const STATIC_LAMPS = [...[-6,6].flatMap(x=>[-8,-4,0,4].map(z=>[x,1.5,z] as V3)), ...[-19,-8,7,20].map(x=>[x,1.5,-10.5] as V3), [-13,2.6,0] as V3, [-2.5,2.8,12] as V3, [2.5,2.8,12] as V3]
+export const STATIC_LAMPS = [...[-6,6].flatMap(x=>[-8,-4,0,4].map(z=>[x,1.5,z] as V3)), ...[-19,-8,7,20].map(x=>[x,1.5,-10.5] as V3), [-13,2.6,0] as V3, [-2.5,2.8,12] as V3, [2.5,2.8,12] as V3, [15,4.7,7] as V3, [-14,2.6,-12.3] as V3, [0,6.8,-23] as V3, [18,4.8,-23] as V3]
 
 /** Shared by the renderer and the offline ray bake. Coordinates are in world metres. */
 export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
@@ -148,6 +148,36 @@ export function buildArchitectureGeometry(): Map<Surface,T.BufferGeometry> {
         const leaf=new T.CircleGeometry(.11,5);leaf.scale(1,.55,1);add(leaf,'leaf',[lx,ly,lz],[Math.PI/2+Math.sin(j)*.5,j*1.2,0])
       }
     }
+    // Enclosed chambers retain walkable entry gaps for classic exploration.
+    // Mission mode seals those gaps with dynamic shoji, so the garden is revealed only at the end.
+    box([-14,3.48,0],[10,.12,12],'cedar')
+    for(const [z,w] of [[-2.25,7.5],[5.25,1.5]])shoji([-9,1.65,z],w,3.2,Math.PI/2)
+    box([15,5.9,3],[10,.12,12],'cedar')
+    for(const x of [11.25,13.75,16.25,18.75])for(const z of [-3,9])shoji([x,2.7,z],2.5,5.3)
+    for(const z of [-1.5,1.5,4.5,7.5])shoji([20,2.7,z],3,5.3,Math.PI/2)
+    for(const [z,w] of [[1,8],[8,2]])shoji([10,2.7,z],w,5.3,Math.PI/2)
+    // Pool bank sits inside a covered room; its underwater masonry remains unchanged.
+    box([-14,3.35,-18],[10.8,.12,13],'cedar')
+    for(const x of [-18,-15.3,-12.6,-9.9])shoji([x,1.65,-24.5],2.7,3.2)
+    for(const x of [-19.4,-8.6])for(const z of [-22.8,-19.6,-16.4,-13.2])shoji([x,1.65,z],3.2,3.2,Math.PI/2)
+    shoji([-17.4,1.65,-11.5],3.6,3.2);shoji([-10.6,1.65,-11.5],3.6,3.2)
+    // Storehouse and inverse corridor close toward the outside, with impossible nested frames inside.
+    shoji([-2.85,3.6,-15],3.3,7.1);shoji([2.85,3.6,-15],3.3,7.1)
+    box([0,7.4,-20],[9,.14,10],'cedar')
+    shoji([11.55,2.9,-15],3.9,5.7);shoji([18.45,2.9,-15],3.9,5.7);shoji([15,2.9,-25],11,5.7)
+    for(let i=0;i<4;i++){
+      const z=-18-i*1.7,a=(i-1.5)*.11
+      box([0,6.7,z],[7.5,.16,.18],'darkwood',[0,0,a]);box([-3.7,4.5,z],[.15,4,.15],'darkwood',[0,0,a]);box([3.7,4.5,z],[.15,4,.15],'darkwood',[0,0,a])
+      box([15,5.72,-17-i*1.8],[8.6,.055,1.55],'tatami',[0,0,0]);box([15,5.68,-17.78-i*1.8],[8.6,.06,.07],'cloth')
+    }
+    // Small folded paper charms and suspended floor fragments suggest a broken spatial order.
+    for(let i=0;i<12;i++){
+      const x=-3.7+(i%2)*7.4,y=2+(i%3)*1.5,z=-17-Math.floor(i/2)*1.2
+      box([x,y,z],[.22,.56,.02],'paper',[.12*i,.15*i,.13*i]);cyl([x,y+.7,z],.009,.85,'cloth')
+    }
+    for(const [x,y,z]of [[11.3,4.8,-23],[18.8,3.5,-22],[-17.8,2.5,-4]]){
+      box([x,y,z],[1.5,.1,1.1],'tatami',[.13,.22,.2]);box([x,y+.08,z],[1.6,.04,.06],'darkwood',[.13,.22,.2])
+    }
     // Wall foundation details, bronze nail heads and skirting.
     for(let x=-20;x<=20;x+=1.2)for(const z of [9.9,-11.9])cyl([x,.14,z],.025,.02,'brass',undefined,.025,8)
 
@@ -176,6 +206,13 @@ export const COLLISION_BOXES: {p:V3;s:V3}[] = (()=>{const boxes: {p:V3;s:V3}[] =
   {p:[-21.6,1.2,-3.1],s:[.35,2.4,45.8]}, {p:[21.6,1.2,-3.1],s:[.35,2.4,45.8]}, {p:[0,1.3,-26],s:[43.4,2.6,.35]},
   {p:[-1.5,.85,-.7],s:[2.2,1.7,4.2]}, {p:[4.6,.85,-5.2],s:[2.3,1.7,2.5]}, {p:[-7.2,.8,3],s:[1.3,1.6,2]},
   ]
+  boxes.push(
+    {p:[-14,3.48,0],s:[10,.12,12]}, {p:[-9,1.7,-2.25],s:[.15,3.4,7.5]}, {p:[-9,1.7,5.25],s:[.15,3.4,1.5]},
+    {p:[15,5.9,3],s:[10,.12,12]}, {p:[15,2.7,-3],s:[10,5.4,.15]}, {p:[15,2.7,9],s:[10,5.4,.15]}, {p:[20,2.7,3],s:[.15,5.4,12]}, {p:[10,2.7,1],s:[.15,5.4,8]}, {p:[10,2.7,8],s:[.15,5.4,2]},
+    {p:[-14,3.35,-18],s:[10.8,.12,13]}, {p:[-14,1.65,-24.5],s:[10.8,3.3,.15]}, {p:[-19.4,1.65,-18],s:[.15,3.3,13]}, {p:[-8.6,1.65,-18],s:[.15,3.3,13]}, {p:[-17.4,1.65,-11.5],s:[3.6,3.3,.15]}, {p:[-10.6,1.65,-11.5],s:[3.6,3.3,.15]},
+    {p:[-2.85,3.6,-15],s:[3.3,7.2,.15]}, {p:[2.85,3.6,-15],s:[3.3,7.2,.15]}, {p:[0,7.4,-20],s:[9,.14,10]},
+    {p:[11.55,2.9,-15],s:[3.9,5.8,.15]}, {p:[18.45,2.9,-15],s:[3.9,5.8,.15]}, {p:[15,2.9,-25],s:[11,5.8,.15]}
+  )
   for(let i=0;i<7;i++)boxes.push({p:[-11,-.25-i*.43,-13.4-i*.5],s:[1.8,.3,.65]})
   for(const [cx,cz] of [[3,3],[-2.5,-6.5]])boxes.push({p:[cx,.9,cz],s:[2.05,1.8,.32]})
   return boxes})()

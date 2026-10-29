@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs'
 import assert from 'node:assert/strict'
@@ -21,7 +22,7 @@ try{
  const jump=async()=>{await ground();await p.keyboard.down('Space');try{await wait(()=>{const e=window.__ttvEngine,m=e.runtime.state.get('w:oboro:game').motion[e.runtime.self().peerId];return !e.player.grounded&&e.player.position.y>.35&&m?.apex>.35})}finally{await p.keyboard.up('Space')}}
  const shot=async(file,releaseScene)=>{const hint=await p.addStyleTag({content:'.hud .notices[style*="40%"] .notice{visibility:hidden!important}'});await p.screenshot({path:`${output}/${file}`,timeout:90000});await hint.evaluate(e=>e.remove());const data=await snap();assert.equal(data.state.phase,'running','feature capture must remain in the active round');captures.push({file,releaseScene,hud:'visible; pointer-lock hint hidden for capture',thirdPerson:releaseScene==='sprint',position:data.pose.position,mode:documentMode(data),fixture:'debug teleport and spawn-protection fixture isolate capture from combat; actual keyboard and authoritative game rules for the feature'})}
  function documentMode(data){return {blur:data.blur,dust:data.dust,landing:data.motion?.lastLanding,enemies:data.state.enemies.map(e=>e.mode)}}
- await p.goto(new URL('play/?debug=1',base).href);await p.getByTestId('start').click({timeout:120000});await p.getByRole('button',{name:'音：切',exact:true}).click()
+ await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);await p.getByTestId('start').click({timeout:120000});await p.getByRole('button',{name:'音：切',exact:true}).click()
  // Movement/material checks are isolated from combat; the hearing check below explicitly removes protection.
  await p.evaluate(()=>{const rt=window.__ttvEngine.runtime,s=structuredClone(rt.state.get('w:oboro:game'));s.protectedUntil[rt.self().peerId]=rt.clock().now()+600000;rt.state.set('w:oboro:game',s)})
  await tp([3,.1,7]);await p.keyboard.press('KeyH');await p.keyboard.down('ShiftLeft');await p.keyboard.down('KeyW')

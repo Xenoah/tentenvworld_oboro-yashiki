@@ -1,0 +1,33 @@
+import {chromium} from 'playwright-core'
+import assert from 'node:assert/strict'
+import {mkdirSync,writeFileSync} from 'node:fs'
+import {advance,click3d,id,solve,state,tp,wait} from './mission-driver.mjs'
+const base=process.env.OBORO_PAGES_URL||'http://localhost:5192/tentenvworld_oboro-yashiki/',out=process.env.OBORO_EVIDENCE_DIR||'evidence/pages';mkdirSync(out,{recursive:true})
+const browser=await chromium.launch({executablePath:process.env.BROWSER||undefined,headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader','--disable-dev-shm-usage','--disable-background-timer-throttling','--disable-renderer-backgrounding']})
+const ctx=await browser.newContext({viewport:{width:800,height:600}}),errors=[],results=[],pages=[]
+await ctx.addInitScript(()=>{localStorage.setItem('ttv.settings.v1',JSON.stringify({quality:'low',renderScale:.5,shadows:false,autoEnterVR:false}));window.__micRequests=0;navigator.mediaDevices.getUserMedia=async()=>{window.__micRequests++;throw Error('No microphone requested')}})
+const record=(name,data={})=>{results.push({name,...data});console.log('PASS',name,JSON.stringify(data))}
+async function open(){const p=await ctx.newPage();pages.push(p);p.setDefaultTimeout(60000);p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)});await p.goto(new URL('play/?debug=1',base).href);await wait(p,()=>window.__oboro&&window.__ttvEngine?.runtime.state.has('w:oboro:game'),null,180000);return p}
+try{
+ const a=await open();assert.equal((await state(a)).mode,'mission');await wait(a,()=>Math.abs(window.__ttvEngine.player.position.x+12)<.5);await a.getByRole('button',{name:'見習い 12:00',exact:true}).click();await a.getByTestId('start').click();await wait(a,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase==='running');record('default arrival and round start are inside the study')
+ await wait(a,()=>{const r=window.__ttvEngine.runtime;return r.clock().now()>r.state.get('w:oboro:game').startedAt+1600})
+ // A real missed beat, then an expiring room clock, exercise failure and local retry without success fixtures.
+ await tp(a,[-13,.12,2.7]);await a.keyboard.press('Digit1');const before=(await state(a)).mission.attempt
+ await a.evaluate(()=>{const r=window.__ttvEngine.runtime,s=structuredClone(r.state.get('w:oboro:game'));s.mission.deadline=r.clock().now()-1;r.state.set('w:oboro:game',s)})
+ await wait(a,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.failed);await a.getByTestId('mission-retry').click();await wait(a,n=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.attempt===n+1,before);assert.equal((await state(a)).phase,'running');record('room timeout presents retry; retry preserves the run and resets its attempt')
+ for(let stage=0;stage<5;stage++){await solve(a,{nativeJump:stage===1});record('solo room complete',{stage,keys:(await state(a)).keys});await advance(a)}
+ await wait(a,()=>{const p=window.__ttvEngine.player.position;return Math.abs(p.x)<.5&&p.z<-9});assert.equal((await state(a)).mission.stage,5)
+ await a.evaluate(()=>{const r=window.__ttvEngine.runtime,s=structuredClone(r.state.get('w:oboro:game'));s.protectedUntil[r.self().peerId]=r.clock().now()+600000;r.state.set('w:oboro:game',s)})
+ await tp(a,[0,.12,14.8]);await a.keyboard.down('KeyS');try{await wait(a,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').phase==='won')}finally{await a.keyboard.up('KeyS')}
+ assert.ok((await state(a)).score>0);record('after five rooms the courtyard opens; actual final gate touch wins')
+ await a.getByTestId('start').click();await wait(a,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').run===2);assert.deepEqual((await state(a)).keys,[]);assert.equal((await state(a)).mission.stage,0);record('whole-run restart restores indoor start, no mission progress or locomotion leakage')
+ await solve(a);const b=await open();await wait(b,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.cleared);assert.deepEqual((await state(b)).keys,['wood']);record('late join receives room completion and shared progress')
+ await advance(a);await wait(b,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.stage===1);await solve(a);await advance(a);await wait(b,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.stage===2)
+ const aid=await id(a),bid=await id(b);await tp(a,[-16,-2.8,-16]);await wait(a,aid=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.carried[aid]===0,aid)
+ await tp(b,[-16,-2.8,-16]);await b.evaluate(()=>{const r=window.__ttvEngine.runtime,s=r.state.get('w:oboro:game');r.events.emit('oboro:command',{run:s.run,kind:'mission',value:'take:0',seq:s.mission.attempt},'host')});await a.waitForTimeout(500);assert.equal(Object.values((await state(a)).mission.carried).filter(n=>n===0).length,1)
+ await tp(b,[-12,-2.8,-18]);await wait(a,bid=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.carried[bid]===1,bid)
+ await tp(a,[-14,.12,-12.3]);await tp(b,[-14,.12,-12.3]);await wait(a,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.deliveries.length===2);await wait(b,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.deliveries.length===2);record('two players carry different lanterns and share deliveries; duplicate pickup rejected')
+ await solve(a);await advance(a);await wait(b,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.stage===3)
+ await a.close();await wait(b,()=>{const r=window.__ttvEngine.runtime;return r.hostId()===r.self().peerId});assert.equal((await state(b)).keys.length,3);await solve(b);await advance(b);await solve(b);await advance(b);record('host disconnect preserves room progress; replacement host finishes remaining rooms')
+ assert.deepEqual(errors,[]);for(const p of pages)if(!p.isClosed())assert.equal(await p.evaluate(()=>window.__micRequests),0)
+}catch(e){errors.push(String(e));for(const p of pages)if(!p.isClosed()){console.error('Mission failure',JSON.stringify(await p.evaluate(()=>{const e=window.__ttvEngine;return {state:e?.runtime.state.get('w:oboro:game'),pose:e?.localPose(),body:document.body.innerText}})));await p.screenshot({path:`${out}/mission-failure.png`,timeout:90000}).catch(()=>{})}throw e}finally{writeFileSync(`${out}/mission-results.json`,JSON.stringify({results,errors,transport:'Two Chromium tabs / LocalTransport; no cross-device or real VC claim',fixtures:'Position/clock/protection fixtures only; progress, keys, deliveries, wins are host-authored by real input/occupancy'},null,2));await browser.close()}

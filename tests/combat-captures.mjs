@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import assert from 'node:assert/strict'
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs'
@@ -10,7 +11,7 @@ const wait=(fn,arg=null)=>p.waitForFunction(fn,arg,{timeout:60000,polling:100})
 async function tp(pos,yaw=0){await p.evaluate(({pos,yaw})=>window.__ttvEngine.runtime.teleport(pos,yaw),{pos,yaw});await wait(pos=>{const e=window.__ttvEngine;return !e.pendingTeleport&&e.player.grounded&&Math.hypot(e.player.position.x-pos[0],e.player.position.z-pos[2])<.1},pos);await p.evaluate(()=>document.activeElement?.blur())}
 async function shot(file,releaseScene,fixture){const style=await p.addStyleTag({content:'.hud .notices[style*="40%"] .notice{visibility:hidden!important}'}),before=await p.evaluate(()=>{const e=window.__ttvEngine,r=e.runtime;return {pose:e.localPose(),vitals:r.state.get('w:oboro:game').vitals,enemies:r.state.get('w:oboro:game').enemies,perf:window.__ttvPerf}});await p.screenshot({path:`${out}/${file}`,timeout:90000});await style.evaluate(e=>e.remove());captures.push({file,releaseScene,fixture,...before})}
 try{
- await p.goto(new URL('play/?debug=1',base).href);await p.waitForFunction(()=>window.__oboro&&window.__ttvEngine?.interactables.size>15,null,{timeout:180000});const build=await(await p.request.get(new URL('build.json',base).href)).json()
+ await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);await p.waitForFunction(()=>window.__oboro&&window.__ttvEngine?.interactables.size>15,null,{timeout:180000});const build=await(await p.request.get(new URL('build.json',base).href)).json()
  await p.getByTestId('start').click();await wait(()=>{const r=window.__ttvEngine.runtime;return r.clock().now()>r.state.get('w:oboro:game').startedAt});await tp([6,.1,3])
  await p.evaluate(()=>{const r=window.__ttvEngine.runtime,s=structuredClone(r.state.get('w:oboro:game'));s.protectedUntil[r.self().peerId]=r.clock().now()+600000;s.enemies[0]={pos:[6,0,1],target:null,alertAt:0,waypoint:0,mode:'stunned',stunUntil:r.clock().now()+60000};r.state.set('w:oboro:game',s)})
  for(const guard of [60,20,0]){await p.keyboard.press('KeyJ');await wait(guard=>window.__ttvEngine.runtime.state.get('w:oboro:game').enemies[0].guard===guard,guard);await p.waitForTimeout(800)}

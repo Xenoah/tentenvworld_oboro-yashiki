@@ -1,3 +1,5 @@
+import { Missions } from './Missions'
+import { checkpoint } from './missions'
 // Based on TenTenV's official worlds/template/src/index.tsx (AGPL-3.0-only).
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -22,14 +24,14 @@ import { Guide, STAR_PAD, STAR_REST, type Objective } from './Guide'
 const STATE = 'w:oboro:game'
 function useGame(){
   const rt=useRuntime(),host=useIsHost(),players=usePlayers()
-  const [state]=useSyncedState<GameState>('oboro:game',initialState())
-  const [message,setMessage]=useState('五つの印を集め、夜明けまでに門を開け。')
+  const [state]=useSyncedState<GameState>('oboro:game',initialState(0,'normal','mission'))
+  const [message,setMessage]=useState('歪んだ五つの部屋を越え、最後は夜風の庭へ。')
   const accumulator=useRef(0),store=useWorldStore(),[best,setBest]=useState({score:0,time:0})
   useEffect(()=>{void Promise.all([store.player.get('oboro-best'),store.player.get('oboro-best-time')]).then(([a,b])=>setBest({score:Number(a)||0,time:Number(b)||0})).catch(()=>{})},[store])
-  useEffect(()=>{rt.teleport(SPAWN,0)},[rt])
+  useEffect(()=>{rt.locomotion?.set(null);rt.teleport(checkpoint(state),0)},[rt,state.mode])
   const send=(kind:string,value?:string)=>rt.events.emit('oboro:command',{run:state.run,kind,value},'host')
   useEffect(()=>{
-    if(host&&!rt.state.has(STATE))rt.state.set(STATE,initialState())
+    if(host&&!rt.state.has(STATE))rt.state.set(STATE,initialState(0,'normal','mission'))
     return rt.events.on('oboro:command',(payload,from)=>{
       if(rt.hostId()!==rt.self().peerId || !rt.players().some(p=>p.peerId===from.peerId))return
       const s=(rt.state.get(STATE)??initialState()) as GameState
@@ -38,7 +40,7 @@ function useGame(){
       if(next!==s){rt.state.set(STATE,next);if(cmd.kind==='recover')rt.events.emit('oboro:rescue',{run:s.run},from.peerId)}
     })
   },[rt,host])
-  useEffect(()=>rt.events.on('oboro:rescue',(p,from)=>{if(from.peerId===rt.hostId()&&(p as {run:number}).run===state.run){rt.locomotion?.set(null);rt.teleport(SPAWN,0);setMessage('玄関へ帰還。9秒の保護時間 / -150点')}}),[rt,state.run])
+  useEffect(()=>rt.events.on('oboro:rescue',(p,from)=>{if(from.peerId===rt.hostId()&&(p as {run:number}).run===state.run){rt.locomotion?.set(null);rt.teleport(checkpoint(state),0);setMessage(state.mode==='mission'?'部屋の入口へ復帰。9秒の保護時間 / -150点':'玄関へ帰還。9秒の保護時間 / -150点')}}),[rt,state.run,state.mode,state.mission?.stage])
   useFrame((_,dt)=>{
     if(!host)return
     accumulator.current+=dt;if(accumulator.current<.2)return;accumulator.current=0
@@ -49,11 +51,11 @@ function useGame(){
   const last=useRef({run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length})
   useEffect(()=>{
     if(last.current.run!==state.run||last.current.phase!==state.phase){
-      rt.locomotion?.set(null);rt.teleport(SPAWN,0)
-      setMessage(state.phase==='running'?'探索開始。印・星・光る輪には触れるだけ。橙の輪は縁側の縄。':state.reason||'準備ができたら探索を始めよう。')
+      rt.locomotion?.set(null);rt.teleport(checkpoint(state),0)
+      setMessage(state.phase==='running'?(state.mode==='mission'?'探索開始。部屋の目標を達成して、歪みの扉を開こう。':'探索開始。印・星・光る輪には触れるだけ。橙の輪は縁側の縄。'):state.reason||'準備ができたら探索を始めよう。')
       if(state.phase==='won'){const time=Math.round(elapsed(state,state.endedAt));const next={score:Math.max(best.score,state.score),time:best.time?Math.min(best.time,time):time};setBest(next);void store.player.set('oboro-best',next.score).then(()=>store.player.set('oboro-best-time',next.time)).catch(()=>{})}
     }
-    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/${required(state).length}${ready(state)?' — 脱出門へ！':''}`);play(rt.audioListener(),'seal')}
+    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(state.mode==='mission'?`部屋 ${state.keys.length}/5 達成。歪みの扉へ進もう。`:`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/${required(state).length}${ready(state)?' — 脱出門へ！':''}`);play(rt.audioListener(),'seal')}
     if(last.current.run===state.run&&last.current.stars<state.stars.length)play(rt.audioListener(),'star')
     last.current={run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length}
   },[state.run,state.phase,state.keys.length,state.stars.length])
@@ -83,29 +85,29 @@ function useGame(){
 }
 type Game=ReturnType<typeof useGame>
 
-export default function World(){return <><RigidBody type="fixed" colliders={false}><CuboidCollider args={[9,.1,3]} position={[0,-.1,12.5]}/></RigidBody><Suspense fallback={null}><Oboro/></Suspense></>}
+export default function World(){return <><RigidBody type="fixed" colliders={false}><CuboidCollider args={[9,.1,3]} position={[0,-.1,12.5]}/><CuboidCollider args={[2,.1,2]} position={[-12,-.2,4]}/></RigidBody><Suspense fallback={null}><Oboro/></Suspense></>}
 function Oboro(){
   const m=useMaterials(),game=useGame(),device=useDevice(),rt=useRuntime(),motion=useRef<MovementVisual>({intensity:0,mode:'idle',dust:0})
   const [nav,setNav]=useState(true),[goal,setGoal]=useState<Objective>(null),[comfort,setComfort]=useState(true),[sound,saveSound]=useState(false),[help,setHelp]=useState(false),[visuals,setVisuals]=useState<VisualSettings>(DEFAULT_VISUALS)
   const setSound=(value:boolean)=>{saveSound(value);if(value)void rt.audioListener().context.resume().catch(()=>{})}
   return <>
-    <color attach="background" args={['#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
+    <color attach="background" args={[game.state.mode==='mission'&&game.state.mission?.stage===5?'#34485b':'#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
     <hemisphereLight args={['#c0d5e4','#5b4230',1.0]}/><SoftLighting settings={visuals} motion={motion}/><MovementEffects state={game.state} sound={sound} visual={motion}/><Combat state={game.state} sound={sound} materials={m}/><VoiceZones/>
     <directionalLight position={[-12,22,10]} color="#c7daec" intensity={1.7} castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-27} shadow-camera-right={27} shadow-camera-top={30} shadow-camera-bottom={-28} shadow-camera-far={70} shadow-bias={-.0004} shadow-normalBias={.025} shadow-radius={3}/>
     <pointLight position={[0,5,-20]} color="#889bff" intensity={16} distance={10} decay={2}/>
     <pointLight position={[-14,-.5,-18]} color="#4faeaa" intensity={12} distance={9} decay={2}/>
-    <SpawnPad position={SPAWN} yaw={0}/>
+    <SpawnPad position={checkpoint(game.state)} yaw={0}/>
     <Architecture materials={m} shading={visuals.shading}/>
-    <Moon/><Water/><Dust/><ComfortCurtain enabled={comfort}/>
-    <Board game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} materials={m}/>
-    <Gimmicks game={game} m={m} comfort={comfort}/>
+    <Moon/><Water/><Dust/><ComfortCurtain enabled={comfort||game.state.mode==='mission'}/>
+    {game.state.mode!=='mission'&&<Board game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} materials={m}/>}
+    {game.state.mode!=='mission'?<Gimmicks game={game} m={m} comfort={comfort}/>:<><Missions state={game.state} m={m} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} host={game.host} send={game.send}/><RotatingDoor open={!!game.state.mission?.cleared||game.state.mission?.stage!==0} m={m}/>{game.state.mission?.stage===4&&<SurfaceButtons m={m} game={game} comfort={comfort}/>}<Jail state={game.state} m={m} send={game.send}/></>}
     <Mobility game={game} comfort={comfort} m={m}/>
-    {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'} difficulty={game.state.difficulty}/>) }
+    {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'&&(game.state.mode!=='mission'||game.state.mission?.stage===5)} difficulty={game.state.difficulty}/>) }
     <Smoke state={game.state} m={m} send={game.send} now={()=>rt.clock().now()}/>
     <Music game={game} sound={sound}/>
     <SealBurst state={game.state}/>
     <Guide state={game.state} enabled={nav} pads={comfort||!rt.locomotion} onChange={setGoal}/>
-    {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={.45} maxDistance={65} refDistance={15} loop/>}
+    {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={game.state.mode==='mission'&&(game.state.mission?.stage??0)<5?.12:.45} maxDistance={65} refDistance={15} loop/>}
     {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} goal={nav?goal:null} extra={<>{game.held>0&&game.state.phase==='running'&&<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>}<button data-testid="nav" onClick={()=>setNav(!nav)} style={{border:'1px solid #9f89585c',borderRadius:3,background:'#233c3cdd',color:'#e6dcc5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>{nav?'ナビ：入':'ナビ：切'}</button></>}/>}
   </>
 }
@@ -206,7 +208,7 @@ function SurfaceButtons({m,game:g,comfort}:{m:Materials;game:Game;comfort:boolea
   const rt=useRuntime(),running=g.state.phase==='running'&&g.state.updatedAt>=g.state.startedAt&&!g.state.jailed?.[rt.self().peerId],pads=!rt.locomotion
   const enter=(mode:'wall'|'ceiling'|'floor')=>{
     if(!running)return
-    const p:V3=mode==='wall'?[10,1.5,-18]:mode==='ceiling'?[14,rt.locomotion?5.78:4.3,-19]:[14,.1,-13.2]
+    const p:V3=mode==='wall'?[10,1.5,-18]:mode==='ceiling'?[14,rt.locomotion?5.78:4.3,-19]:g.state.mode==='mission'?[15,.1,-16.5]:[14,.1,-13.2]
     markWarp();rt.events.emit('oboro:surface-local',{mode},rt.self().peerId);rt.teleport(p,0);play(rt.audioListener(),'warp')
   }
   return <>
@@ -247,11 +249,11 @@ function Coin({pos,value,m,onTouch}:{pos:V3;value:number;m:Materials;onTouch:()=
     <FaceCamera position={[pos[0],pos[1]+.42,pos[2]]}><TextPlane text={`${value}`} width={.42} lineHeight={.11} color="#ffe39a"/></FaceCamera>
     <Touch position={[pos[0],pos[1]-.1,pos[2]]} size={[1.1,1.8,1.1]} onEnter={onTouch}/></>
 }
-const FOOTRESTS:V3[]=[[-2,.85,-17],[2,2.65,-20],[-2,4.45,-21],[0,4.45,-19],[10,1.35,-18],[14,4.15,-19],[16,4.15,-20]]
+const FOOTRESTS:V3[]=[[-2,.85,-17],[2,2.65,-20],[-2,4.45,-21],[0,4.45,-19],[10,1.35,-18],[14,4.15,-19],[16,4.15,-20],[18,4.15,-21]]
 function Mobility({game:g,comfort,m}:{game:Game;comfort:boolean;m:Materials}){
   const rt=useRuntime(),device=useDevice(),surface=useRef<'wall'|'ceiling'|'floor'>('floor'),lastRescue=useRef(0)
   useEffect(()=>rt.events.on('oboro:surface-local',(p,from)=>{if(from.peerId===rt.self().peerId)surface.current=(p as {mode:typeof surface.current}).mode}),[rt])
-  useEffect(()=>{surface.current='floor';rt.locomotion?.set(null);return()=>rt.locomotion?.set(null)},[g.state.run,g.state.phase])
+  useEffect(()=>{surface.current='floor';rt.locomotion?.set(null);return()=>rt.locomotion?.set(null)},[g.state.run,g.state.phase,g.state.mission?.attempt])
   useFrame(()=>{
     const p=rt.pose(rt.self().peerId)?.position;if(!p)return
     if(g.state.phase!=='running'){rt.locomotion?.set(null);return}

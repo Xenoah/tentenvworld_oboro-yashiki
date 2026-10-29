@@ -1,3 +1,4 @@
+import {selectLegacy} from './select-legacy.mjs'
 import {chromium} from 'playwright-core'
 import assert from 'node:assert/strict'
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs'
@@ -14,7 +15,7 @@ async function open(guest=false){
  if(guest)await p.setViewportSize({width:800,height:600})
  await p.addInitScript(config=>localStorage.setItem('ttv.settings.v1',JSON.stringify(config)),{quality:'low',renderScale:.5,shadows:false,autoEnterVR:false})
  p.on('pageerror',e=>errors.push(e.message));p.on('crash',()=>errors.push('Browser page crashed'));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`)})
- const started=Date.now();await p.goto(new URL('play/?debug=1',base).href)
+ const started=Date.now();await p.goto(new URL('play/?debug=1',base).href);await selectLegacy(p);
  // Shader startup on concurrent software renderers is separate from gameplay waits.
  // Keep the same ready condition; only the startup budget matches the four-client suite.
  await p.waitForFunction(()=>window.__oboro&&window.__ttvEngine?.interactables.size>15,null,{timeout:process.env.CI==='true'?180000:90000,polling:100})
