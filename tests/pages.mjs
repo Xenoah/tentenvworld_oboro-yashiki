@@ -23,7 +23,7 @@ try{
 const suite=process.env.OBORO_BROWSER_SUITE||'all'
 if(!['all','legacy','mission'].includes(suite))throw Error('Unknown browser suite')
 const legacy=['tests/movement-sync.mjs','tests/combat.mjs','tests/casual.mjs','tests/e2e.mjs','tests/traversal.mjs','tests/pages-visual.mjs','tests/graphics-fallback.mjs','tests/lighting.mjs','tests/drag-look.mjs','tests/stealth-movement.mjs','tests/combat-captures.mjs','tests/voice-audio.mjs','tests/voice-integration.mjs','tests/voice-captures.mjs']
-const mission=['tests/missions.mjs','tests/missions-compat.mjs','tests/missions-captures.mjs']
+const mission=['tests/missions.mjs','tests/missions-compat.mjs','tests/missions-walk.mjs','tests/missions-captures.mjs']
 for(const script of [...(suite!=='mission'?legacy:[]),...(suite!=='legacy'?mission:[])])execFileSync(process.execPath,[script],{stdio:'inherit',env:{...process.env,OBORO_TEST_URL:new URL('play/?debug=1',base).href,OBORO_EVIDENCE_DIR:output}})
 
 // Preserve this release's new-feature captures after the legacy visual regressions finish.

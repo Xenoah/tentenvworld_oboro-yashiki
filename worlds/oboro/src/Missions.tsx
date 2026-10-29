@@ -4,7 +4,7 @@ import {Html} from '@react-three/drei'
 import {CuboidCollider,RigidBody} from '@react-three/rapier'
 import {Clickable,FaceCamera,TextPlane,useDevice,useRuntime} from '@tentenv/sdk'
 import {DIFFICULTIES,distance,type GameState,type V3} from './game'
-import {ANCHORS,chargeSeconds,checkpoint,gravityOpen,gravityPoint,inMissionRoom,JUMP_ROUTE,LANTERNS,REFLEX,reflexBeat,ROOMS,WATER_BANK} from './missions'
+import {ANCHORS,chargeSeconds,checkpoint,checkpointYaw,gravityOpen,gravityPoint,inMissionRoom,JUMP_ROUTE,LANTERNS,REFLEX,reflexBeat,ROOMS,WATER_BANK} from './missions'
 import {Pad,Touch,markWarp} from './Pads'
 import type {Materials} from './Architecture'
 import {play} from './audio'
@@ -18,7 +18,7 @@ export function Missions({state:s,m,comfort,setComfort,sound,setSound,host,send}
  const warp=(pos:V3,yaw=0)=>{markWarp();rt.events.emit('oboro:surface-local',{mode:'floor'},rt.self().peerId);rt.locomotion?.set(null);rt.teleport(pos,yaw);play(rt.audioListener(),'warp')}
  useEffect(()=>{const t=setInterval(()=>setNow(rt.clock().now()),100);return()=>clearInterval(t)},[rt])
  // New round, room, retry and late-join snapshot all use the same safe checkpoint.
- useEffect(()=>{warp(checkpoint(s));return()=>rt.locomotion?.set(null)},[s.run,s.phase,ms.attempt,rt])
+ useEffect(()=>{warp(checkpoint(s),checkpointYaw(s));return()=>rt.locomotion?.set(null)},[s.run,s.phase,ms.attempt,rt])
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const q=live.current,t=e.target as HTMLElement|null;if(q.phase==='running'&&q.mission?.stage===0&&!e.repeat&&!/INPUT|TEXTAREA|SELECT/.test(t?.tagName??'')&&!t?.isContentEditable&&/^Digit[123]$/.test(e.code)){e.preventDefault();actionRef.current(`hit:${Number(e.code.at(-1))-1}`)}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[])
  useFrame(()=>{const q=live.current,p=rt.pose(rt.self().peerId)?.position;if(!p||q.phase!=='running'||!q.mission||q.mission.stage>=5||q.jailed[rt.self().peerId])return;if(!inMissionRoom(q.mission.stage,p)&&rt.clock().now()-lastBoundary.current>1800){lastBoundary.current=rt.clock().now();warp(checkpoint(q))}})
  const beat=reflexBeat(s,now),nearPortal=room&&distance(rt.pose(rt.self().peerId)?.position??checkpoint(s),room.portal)<3.3
@@ -39,7 +39,8 @@ export function Missions({state:s,m,comfort,setComfort,sound,setSound,host,send}
   {stage===2&&<>
    {LANTERNS.map((p,i)=>!ms.deliveries.includes(i)&&!Object.values(ms.carried).includes(i)&&<group key={i} position={p}><Clickable label={`水中灯籠 ${i+1} を運ぶ`} reach={2.2} enabled={ready&&held===undefined} onClick={()=>action(`take:${i}`)}><mesh material={m.glow}><boxGeometry args={[.32,.45,.32]}/></mesh>{[-.28,.28].map(y=><mesh key={y} position={[0,y,0]} material={m.darkwood}><boxGeometry args={[.5,.1,.5]}/></mesh>)}</Clickable><Touch position={[0,0,0]} size={[1.8,2,1.8]} enabled={ready&&held===undefined} onEnter={()=>action(`take:${i}`)}/></group>)}
    <Marker pos={WATER_BANK} active={ready} label={`受け台 ${ms.deliveries.length}/4`}/>
-   <Pad position={[-12.6,.06,-12.4]} label="水底へ潜る" color="#6ddacb" enabled={ready} onEnter={()=>warp(pads?[-12.6,-2.9,-16.6]:[-12,-1.8,-16])}/>
+   {/* The bank arrival is 1.4 m away; quick re-entry cannot loop, so do not discard it during arrival cooldown. */}
+   <Pad position={[-12.6,.06,-12.4]} arrivalGuard={false} label="水底へ潜る" color="#6ddacb" enabled={ready} onEnter={()=>warp(pads?[-12.6,-2.9,-16.6]:[-12,-1.8,-16])}/>
    <Pad position={[-11.2,-2.95,-20.6]} label="灯籠を岸へ運ぶ" color="#6ddacb" enabled={ready} onEnter={()=>warp(WATER_BANK)}/>
    {held!==undefined&&<FaceCamera position={[WATER_BANK[0],1.5,WATER_BANK[2]]}><TextPlane text="灯籠を受け台へ" width={2.5} lineHeight={.18} color="#93f3d9"/></FaceCamera>}
   </>}

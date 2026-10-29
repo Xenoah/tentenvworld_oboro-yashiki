@@ -148,7 +148,7 @@
 
      // VR: 実際に歩いた分も体を動かす（頭の真下に体を置く）
      let roomDelta = new Vector3()
-@@ -275,6 +292,31 @@
+@@ -275,6 +292,33 @@
      }
 
      const desired = new Vector3(p.velocity.x * dt + roomDelta.x, liftTargetY === null ? S.vy * dt : liftTargetY - p.position.y, p.velocity.z * dt + roomDelta.z)
@@ -157,6 +157,8 @@
 +      if (mobility.mode === 'surface') {
 +        const tangent = new Vector3(mx * speed, 0, -my * speed).applyAxisAngle(UP, dirYaw).applyQuaternion(surfaceQ)
 +        if ((!mobility.rotateView || xr) && Math.abs(surfaceUp.x) > .5) tangent.set(0, my*speed + f.up*speed, -mx*speed)
++        // A level comfort/XR view keeps its screen-relative left/right on the ceiling.
++        if ((!mobility.rotateView || xr) && surfaceUp.y < -.5) tangent.set(mx*speed, 0, -my*speed).applyAxisAngle(UP, dirYaw)
 +        p.velocity.copy(tangent)
 +        desired.copy(tangent.multiplyScalar(dt)).addScaledVector(surfaceUp, -.3 * dt)
 +        S.vy = 0
@@ -180,7 +182,7 @@
      if (p.sitting) {
        const seatP = new Vector3()
        p.sitting.obj.updateWorldMatrix(true, false)
-@@ -290,7 +332,7 @@
+@@ -290,7 +334,7 @@
        const mv = phys.cc.computedMovement()
        const next = p.position.clone().add(new Vector3(mv.x, mv.y, mv.z))
        p.grounded = phys.cc.computedGrounded()
@@ -189,7 +191,7 @@
        phys.body.setNextKinematicTranslation(next)
        // VR で壁に当たったら、部屋ごと押し戻す
        if (xr) {
-@@ -329,6 +371,7 @@
+@@ -329,6 +373,7 @@
            o.position.set(p.position.x - hw.x, playspaceOriginY(p.position.y, seatedLift, S.playspaceLift, liftTargetY), p.position.z - hw.z)
          }
        }
@@ -197,7 +199,7 @@
        o.updateMatrixWorld(true)
        // 頭（ワールド）
        if (headLocal) {
-@@ -361,10 +404,12 @@
+@@ -361,10 +406,12 @@
        let eyeY = eye * crouchEye + s.desktopEyeOffset
        if (p.sitting) eyeY = eye - avatarHipsAboveSeat(eye) + 0.02
        if (p.sleep !== SleepPose.None) eyeY = 0.3

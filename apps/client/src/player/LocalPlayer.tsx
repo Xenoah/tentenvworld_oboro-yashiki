@@ -297,6 +297,8 @@ export const LocalPlayer: React.FC<LocalPlayerProps> = ({ engine, avatarEye }) =
       if (mobility.mode === 'surface') {
         const tangent = new Vector3(mx * speed, 0, -my * speed).applyAxisAngle(UP, dirYaw).applyQuaternion(surfaceQ)
         if ((!mobility.rotateView || xr) && Math.abs(surfaceUp.x) > .5) tangent.set(0, my*speed + f.up*speed, -mx*speed)
+        // A level comfort/XR view keeps its screen-relative left/right on the ceiling.
+        if ((!mobility.rotateView || xr) && surfaceUp.y < -.5) tangent.set(mx*speed, 0, -my*speed).applyAxisAngle(UP, dirYaw)
         p.velocity.copy(tangent)
         desired.copy(tangent.multiplyScalar(dt)).addScaledVector(surfaceUp, -.3 * dt)
         S.vy = 0

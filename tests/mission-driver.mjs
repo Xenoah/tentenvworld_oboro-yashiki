@@ -26,13 +26,20 @@ export async function solve(p,{nativeJump=false,onStage}={}){
   await tp(p,[12,.12,7]);await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.progress===3)
   await tp(p,[17,3.5,2.5]);await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.cleared)
  }
- if(stage===2){for(let i=0;i<4;i++){if((await state(p)).mission.deliveries.includes(i))continue;await tp(p,[[-16,-2.8,-16],[-12,-2.8,-18],[-16,-2.8,-20],[-12,-2.8,-20.5]][i]);await wait(p,i=>{const r=window.__ttvEngine.runtime;return r.state.get('w:oboro:game').mission.carried[r.self().peerId]===i},i);await tp(p,[-14,.12,-12.3]);await wait(p,i=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.deliveries.includes(i),i)}}
+ if(stage===2){for(let i=0;i<4;i++){if((await state(p)).mission.deliveries.includes(i))continue;await tp(p,[[-16,-2.8,-16],[-12,-2.8,-18],[-16,-2.8,-20],[-12,-2.8,-20.5]][i]);await wait(p,i=>{const r=window.__ttvEngine.runtime;return r.state.get('w:oboro:game').mission.carried[r.self().peerId]===i},i);await tp(p,[-11.2,-2.95,-20]);await p.waitForTimeout(1000);await click3d(p,'灯籠を岸へ運ぶ');await wait(p,i=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.deliveries.includes(i),i);
+   // Actual return-pad warp, then immediate normal movement onto the separate dive pad.
+   // This used to lose the new entry during the shared arrival cooldown.
+   if(i<3){await p.evaluate(()=>{const e=window.__ttvEngine;e.player.yaw=Math.atan2(e.player.position.x+12.6,e.player.position.z+12.4);document.activeElement?.blur()});await p.keyboard.down('KeyW');try{await wait(p,()=>window.__ttvEngine.player.position.y<-2)}finally{await p.keyboard.up('KeyW')}}}}
  if(stage===3){for(const [i,pos]of [[0,[-2,1,-17]],[1,[2,2.8,-20]],[2,[-2,4.6,-21]]]){await tp(p,pos);await wait(p,i=>{const s=window.__ttvEngine.runtime.state.get('w:oboro:game');return s.mission.charges[i]>=(s.difficulty==='easy'?2:s.difficulty==='normal'?3:4)},i)}}
  if(stage===4){
   await tp(p,[12.5,.12,-16]);await click3d(p,(await p.getByRole('button',{name:'◉ 快適移動',exact:true}).count())?'壁の足場へ':'壁を歩く');await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.progress>=1)
   // Stock pads retain their real 900 ms arrival cooldown; do not click during it.
   await p.waitForTimeout(1000);await click3d(p,'天井へ渡る');await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.progress>=2)
-  await tp(p,[18,await p.evaluate(()=>window.__ttvEngine.runtime.locomotion?5.78:4.3),-21],0,false);await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.cleared)
+  if(await p.evaluate(()=>!!window.__ttvEngine.runtime.locomotion)&&await p.getByRole('button',{name:'◉ 快適移動',exact:true}).count()){
+   await p.evaluate(()=>{window.__ttvEngine.player.yaw=0;document.activeElement?.blur()});await p.keyboard.down('KeyD');try{await wait(p,()=>window.__ttvEngine.player.position.x>14.5)}finally{await p.keyboard.up('KeyD')}
+   await p.evaluate(()=>{const e=window.__ttvEngine;e.player.yaw=Math.atan2(e.player.position.x-18,e.player.position.z+21)});await p.keyboard.down('KeyW');try{await wait(p,()=>{const p=window.__ttvEngine.player.position;return Math.hypot(p.x-18,p.z+21)<.35})}finally{await p.keyboard.up('KeyW')}
+  }else await tp(p,[18,await p.evaluate(()=>window.__ttvEngine.runtime.locomotion?5.78:4.3),-21],0,false)
+  await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.cleared)
  }
  await wait(p,()=>window.__ttvEngine.runtime.state.get('w:oboro:game').mission.cleared)
  assert.equal((await state(p)).keys.length,stage+1);if(onStage)await onStage(stage)

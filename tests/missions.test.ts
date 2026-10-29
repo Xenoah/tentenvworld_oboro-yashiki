@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {ACTIONS,command,initialState,tick,type GameState,type Player,type V3} from '../worlds/oboro/src/game'
-import {ANCHORS,checkpoint,chargeSeconds,gravityOpen,GRAVITY_ROUTE,JUMP_ROUTE,LANTERNS,REFLEX,reflexBeat,ROOMS,WATER_BANK} from '../worlds/oboro/src/missions'
+import {ANCHORS,checkpoint,checkpointYaw,chargeSeconds,gravityOpen,GRAVITY_ROUTE,JUMP_ROUTE,LANTERNS,REFLEX,reflexBeat,ROOMS,WATER_BANK} from '../worlds/oboro/src/missions'
 let now=1000000
 const actor=(pos:V3,id='host'):Player=>({id,pos,grounded:true,yaw:0})
 function start(){now=1000000;const s=command(initialState(0,'normal','mission'),{run:0,kind:'start'},actor(ROOMS[0].spawn),now,true);now=s.startedAt+500;return tick(s,[actor(ROOMS[0].spawn)],now)}
@@ -18,9 +18,9 @@ function clear(s:GameState):GameState{
 }
 function next(s:GameState){s=cmd(s,'next',ROOMS[s.mission!.stage].portal);now=s.mission!.openedAt+200;return s}
 test('indoor mission route is solo-solvable in order, awards each room once, opens the garden and restarts cleanly',()=>{
- let s=start();assert.deepEqual(checkpoint(s),ROOMS[0].spawn)
+ let s=start();assert.deepEqual(checkpoint(s),ROOMS[0].spawn);assert.equal(checkpointYaw(s),0)
  for(let stage=0;stage<5;stage++){assert.equal(s.mission!.stage,stage);s=clear(s);assert.equal(s.keys.length,stage+1);const points=s.score;s=step(s,ROOMS[stage].portal);assert.equal(s.score,points);s=next(s)}
- assert.equal(s.mission!.stage,5);assert.equal(s.keys.length,5)
+ assert.equal(s.mission!.stage,5);assert.equal(s.keys.length,5);assert.equal(checkpointYaw(s),Math.PI)
  s=command(s,{run:s.run,kind:'exit'},actor(ACTIONS.exit),now,true);assert.equal(s.phase,'won');assert.ok(s.score>10000)
  const end=s;assert.equal(command(s,{run:s.run,kind:'mission',value:'retry',seq:s.mission!.attempt},actor(ROOMS[0].spawn),now,true),end)
  s=command(s,{run:s.run,kind:'restart'},actor(checkpoint(s)),now,true);assert.equal(s.phase,'running');assert.equal(s.mission!.stage,0);assert.deepEqual(s.keys,[]);assert.equal(s.mission!.retries,0);assert.equal(s.mission!.attempt,0)

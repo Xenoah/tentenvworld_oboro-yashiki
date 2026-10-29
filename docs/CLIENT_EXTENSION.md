@@ -63,3 +63,7 @@ v1.4では `InstanceSession` の交代後再同期も修正。既存helloのstat
 optionalな `voiceEffects.setEnvironment(peerId, {preset, lightweight?} | null)` と `activePeers()` を追加。presetはoutdoor／room／narrow／underwaterに限定し、確認済み参加者にだけ適用します。nullは退室後も解除可能です。公式 `WorldSession.transport.onRemoteAudio` とOpus relayの両方が呼ぶ `VoiceManager.addRemote` の受信MediaStreamへ接続し、HRTF／距離／利用者音量／ミュートより前で処理します。音声の送信やマイク許可は変更しません。
 
 `.ttvw`単体を未改変クライアントへimportすると「クライアント拡張が必要」と表示し、既存の声は加工しません。PagesのLocalTransportは音声を送受信しません。実験音を受信処理へ渡したブラウザ検査と、実際の別端末会話は異なります。詳細は[VOICE.md](VOICE.md)。
+
+## v1.6 快適な天井移動
+
+快適移動／XRで視点を水平に保つ場合、天井でも左右入力を見ている方向に合わせます。視点は回転させず入力だけが反転していた不整合を修正しました。自由移動での視点回転と壁面の上昇操作は保持。実ChromiumでDの右移動とWの天井印への歩行を検証します。固定upstreamへの同梱patchにも含みます。

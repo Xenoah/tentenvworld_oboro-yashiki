@@ -17,17 +17,17 @@ export function Touch({ position, size = [1.6, 2.4, 1.6], enabled = true, guard 
 }
 
 /** Glowing floor ring with a camera-facing label; stepping on it runs `onEnter` (usually a warp). */
-export function Pad({ position, label, onEnter, color = '#f0bf6a', radius = .5, enabled = true, arrow }: { position: V3; label?: string; onEnter: () => void; color?: string; radius?: number; enabled?: boolean; arrow?: number }) {
+export function Pad({ position, label, onEnter, color = '#f0bf6a', radius = .5, enabled = true, arrow, arrivalGuard = true }: { position: V3; label?: string; onEnter: () => void; color?: string; radius?: number; enabled?: boolean; arrow?: number; arrivalGuard?: boolean }) {
   const ring = useRef<T.Mesh>(null)
   useFrame(({ clock }) => { if (ring.current) { const k = 1 + Math.sin(clock.elapsedTime * 4) * .06; ring.current.scale.set(k, k, 1) } })
   // Also clickable (VR ray, mouse, tests); walking onto it is the main way in.
   return <group position={position}>
-    {label && enabled && <Clickable label={label} reach={3.3} position={[0, .2, 0]} onClick={() => { if (!warpCooldown()) onEnter() }}><mesh><cylinderGeometry args={[radius, radius, .4, 12]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></Clickable>}
+    {label && enabled && <Clickable label={label} reach={3.3} position={[0, .2, 0]} onClick={() => { if (!arrivalGuard || !warpCooldown()) onEnter() }}><mesh><cylinderGeometry args={[radius, radius, .4, 12]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></Clickable>}
     <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, .035, 0]} visible={enabled}><ringGeometry args={[radius * .72, radius, 40]} /><meshBasicMaterial color={color} transparent opacity={.9} toneMapped={false} /></mesh>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .03, 0]} visible={enabled}><circleGeometry args={[radius * .72, 40]} /><meshBasicMaterial color={color} transparent opacity={.22} depthWrite={false} toneMapped={false} /></mesh>
     {arrow !== undefined && enabled && <mesh rotation={[-Math.PI / 2, 0, arrow]} position={[0, .04, 0]}><circleGeometry args={[radius * .45, 3]} /><meshBasicMaterial color="#fff3d4" transparent opacity={.9} toneMapped={false} /></mesh>}
     {label && enabled && <FaceCamera position={[0, 1.55, 0]}><TextPlane text={label} width={1.5} lineHeight={.15} color="#fff0cf" background="#0f2124cc" padding={.04} radius={.03} /></FaceCamera>}
-    <Touch position={[0, 1, 0]} size={[radius * 1.5, 2, radius * 1.5]} enabled={enabled} guard onEnter={onEnter} />
+    <Touch position={[0, 1, 0]} size={[radius * 1.5, 2, radius * 1.5]} enabled={enabled} guard={arrivalGuard} onEnter={onEnter} />
   </group>
 }
 

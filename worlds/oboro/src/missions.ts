@@ -36,6 +36,8 @@ export function checkpoint(s:GameState):V3 {
  const stage=s.phase==='running'?s.mission?.stage??0:0
  return [...(ROOMS[stage]?.spawn??FINALE_SPAWN)] as V3
 }
+/** Face the open garden after the final room; other checkpoints face their room objective. */
+export const checkpointYaw=(s:GameState)=>s.mode==='mission'&&s.phase==='running'&&(s.mission?.stage??0)>=5?Math.PI:0
 export function reflexBeat(s:GameState,now:number){
  const m=s.mission!,period=[3600,3000,2400][level(s.difficulty)],at=Math.max(0,now-m.openedAt),beat=Math.floor(at/period)
  return {beat,target:((beat*5+(s.seed>>>3))%3),open:at%period>350&&at%period<period-[550,700,850][level(s.difficulty)],period}

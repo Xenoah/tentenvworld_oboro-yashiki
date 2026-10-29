@@ -1,5 +1,5 @@
 import { Missions } from './Missions'
-import { checkpoint, ROOMS } from './missions'
+import { checkpoint, checkpointYaw, ROOMS } from './missions'
 // Based on TenTenV's official worlds/template/src/index.tsx (AGPL-3.0-only).
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -28,7 +28,7 @@ function useGame(){
   const [message,setMessage]=useState('歪んだ五つの部屋を越え、最後は夜風の庭へ。')
   const accumulator=useRef(0),store=useWorldStore(),[best,setBest]=useState({score:0,time:0})
   useEffect(()=>{void Promise.all([store.player.get('oboro-best'),store.player.get('oboro-best-time')]).then(([a,b])=>setBest({score:Number(a)||0,time:Number(b)||0})).catch(()=>{})},[store])
-  useEffect(()=>{rt.locomotion?.set(null);rt.teleport(checkpoint(state),0)},[rt,state.mode])
+  useEffect(()=>{rt.locomotion?.set(null);rt.teleport(checkpoint(state),checkpointYaw(state))},[rt,state.mode])
   const send=(kind:string,value?:string)=>rt.events.emit('oboro:command',{run:state.run,kind,value},'host')
   useEffect(()=>{
     if(host&&!rt.state.has(STATE))rt.state.set(STATE,initialState(0,'normal','mission'))
@@ -40,7 +40,7 @@ function useGame(){
       if(next!==s){rt.state.set(STATE,next);if(cmd.kind==='recover')rt.events.emit('oboro:rescue',{run:s.run},from.peerId)}
     })
   },[rt,host])
-  useEffect(()=>rt.events.on('oboro:rescue',(p,from)=>{if(from.peerId===rt.hostId()&&(p as {run:number}).run===state.run){rt.locomotion?.set(null);rt.teleport(checkpoint(state),0);setMessage(state.mode==='mission'?'部屋の入口へ復帰。9秒の保護時間 / -150点':'玄関へ帰還。9秒の保護時間 / -150点')}}),[rt,state.run,state.mode,state.mission?.stage])
+  useEffect(()=>rt.events.on('oboro:rescue',(p,from)=>{if(from.peerId===rt.hostId()&&(p as {run:number}).run===state.run){rt.locomotion?.set(null);rt.teleport(checkpoint(state),checkpointYaw(state));setMessage(state.mode==='mission'?'部屋の入口へ復帰。9秒の保護時間 / -150点':'玄関へ帰還。9秒の保護時間 / -150点')}}),[rt,state.run,state.mode,state.mission?.stage])
   useFrame((_,dt)=>{
     if(!host)return
     accumulator.current+=dt;if(accumulator.current<.2)return;accumulator.current=0
@@ -51,7 +51,7 @@ function useGame(){
   const last=useRef({run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length})
   useEffect(()=>{
     if(last.current.run!==state.run||last.current.phase!==state.phase){
-      rt.locomotion?.set(null);rt.teleport(checkpoint(state),0)
+      rt.locomotion?.set(null);rt.teleport(checkpoint(state),checkpointYaw(state))
       setMessage(state.phase==='running'?(state.mode==='mission'?'探索開始。部屋の目標を達成して、歪みの扉を開こう。':'探索開始。印・星・光る輪には触れるだけ。橙の輪は縁側の縄。'):state.reason||'準備ができたら探索を始めよう。')
       if(state.phase==='won'){const time=Math.round(elapsed(state,state.endedAt));const next={score:Math.max(best.score,state.score),time:best.time?Math.min(best.time,time):time};setBest(next);void store.player.set('oboro-best',next.score).then(()=>store.player.set('oboro-best-time',next.time)).catch(()=>{})}
     }
