@@ -11,5 +11,5 @@ createServer((req,res)=>{
  if(path===base.slice(0,-1)){res.writeHead(301,{Location:base}).end();return}
  if(!path.startsWith(base)||path.includes('..')||path.includes('\\')){res.writeHead(404).end();return}
  let file=path.slice(base.length);if(!file||file.endsWith('/'))file+='index.html'
- try{const data=readFileSync(resolve(root,file));res.writeHead(200,{'Content-Type':mime[extname(file)]||'application/octet-stream'});res.end(data)}catch{res.writeHead(404).end()}
+ try{const data=readFileSync(resolve(root,file));res.writeHead(200,{'Content-Type':mime[extname(file)]||'application/octet-stream','Content-Length':data.length});res.end(data)}catch{res.writeHead(404).end()}
 }).listen(port,'127.0.0.1',()=>console.log(`http://localhost:${port}${base}`))
