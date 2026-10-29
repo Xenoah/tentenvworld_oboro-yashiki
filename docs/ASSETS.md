@@ -30,3 +30,7 @@
 ## v1.2 追加
 
 放射状の移動ブラーshader、砂埃の解析的な円形粒子shader、短い足音のノイズ波形は本プロジェクトの自作コード（AGPL-3.0-only）です。外部録音・画像は追加していません。中庭の従来 `gravel` 名の細粒テクスチャは枯山水の砂地として使い、表示と表面判定を「砂」／`sand`へ統一しています。
+
+## v1.7 音源
+
+`worlds/oboro/src/score.ts` の旋律・合成器、`assets/audio-preview` のWAV／解析表はOboro project contributorsのオリジナル、AGPL-3.0-only。外部録音・既存楽曲・外部AIサービスは不使用。琴・三味線・笛風の表記は合成音色の意図で、実楽器録音ではありません。`npm run render:audio`で再生成。旧`garden.wav`は履歴互換用に保持し、新音声経路では重ねて鳴らしません。

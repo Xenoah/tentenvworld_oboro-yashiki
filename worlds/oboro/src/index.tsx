@@ -5,14 +5,15 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { Clickable, FaceCamera, SpawnPad, SpatialSound, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
+import { Clickable, FaceCamera, SpawnPad, TextPlane, useDevice, useIsHost, usePlayers, useRuntime, useSyncedState, useWorldStore } from '@tentenv/sdk'
 import * as T from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { Combat } from './Combat'
 import { VoiceZones } from './VoiceZones'
 import { MovementEffects, type MovementVisual } from './MovementEffects'
 import { Pad, Rope, Touch, markWarp } from './Pads'
-import { Taiko, play, setCuesEnabled, type Mood } from './audio'
+import { play } from './audio'
+import { Soundscape } from './Soundscape'
 import { SoftLighting, DEFAULT_VISUALS, type VisualSettings } from './Lighting'
 import { Architecture, useMaterials, type Materials } from './Architecture'
 import { RUNES, RUNE_NAMES, SCROLL_SPOTS, VALVE_SPOTS } from './layout'
@@ -55,7 +56,7 @@ function useGame(){
       setMessage(state.phase==='running'?(state.mode==='mission'?'探索開始。部屋の目標を達成して、歪みの扉を開こう。':'探索開始。印・星・光る輪には触れるだけ。橙の輪は縁側の縄。'):state.reason||'準備ができたら探索を始めよう。')
       if(state.phase==='won'){const time=Math.round(elapsed(state,state.endedAt));const next={score:Math.max(best.score,state.score),time:best.time?Math.min(best.time,time):time};setBest(next);void store.player.set('oboro-best',next.score).then(()=>store.player.set('oboro-best-time',next.time)).catch(()=>{})}
     }
-    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(state.mode==='mission'?`部屋 ${state.keys.length}/5 達成。歪みの扉へ進もう。`:`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/${required(state).length}${ready(state)?' — 脱出門へ！':''}`);play(rt.audioListener(),'seal')}
+    if(last.current.run===state.run&&last.current.count<state.keys.length){setMessage(state.mode==='mission'?`部屋 ${state.keys.length}/5 達成。歪みの扉へ進もう。`:`${KEYS.find(k=>k.id===state.keys.at(-1))?.name}を共有しました。${state.keys.length}/${required(state).length}${ready(state)?' — 脱出門へ！':''}`);play(rt.audioListener(),state.mode==='mission'?'success':'seal')}
     if(last.current.run===state.run&&last.current.stars<state.stars.length)play(rt.audioListener(),'star')
     last.current={run:state.run,phase:state.phase,count:state.keys.length,stars:state.stars.length}
   },[state.run,state.phase,state.keys.length,state.stars.length])
@@ -96,7 +97,7 @@ type Game=ReturnType<typeof useGame>
 export default function World(){return <><RigidBody type="fixed" colliders={false}><CuboidCollider args={[9,.1,3]} position={[0,-.1,12.5]}/><CuboidCollider args={[2,.1,2]} position={[-12,-.2,4]}/></RigidBody><Suspense fallback={null}><Oboro/></Suspense></>}
 function Oboro(){
   const m=useMaterials(),game=useGame(),device=useDevice(),rt=useRuntime(),motion=useRef<MovementVisual>({intensity:0,mode:'idle',dust:0})
-  const [nav,setNav]=useState(true),[goal,setGoal]=useState<Objective>(null),[comfort,setComfort]=useState(true),[sound,saveSound]=useState(false),[help,setHelp]=useState(false),[visuals,setVisuals]=useState<VisualSettings>(DEFAULT_VISUALS)
+  const [nav,setNav]=useState(true),[goal,setGoal]=useState<Objective>(null),[comfort,setComfort]=useState(true),[sound,saveSound]=useState(false),[audioOpen,setAudioOpen]=useState(false),[help,setHelp]=useState(false),[visuals,setVisuals]=useState<VisualSettings>(DEFAULT_VISUALS)
   const setSound=(value:boolean)=>{saveSound(value);if(value)void rt.audioListener().context.resume().catch(()=>{})}
   return <>
     <color attach="background" args={[game.state.mode==='mission'&&game.state.mission?.stage===5?'#34485b':'#101e29']}/><fog attach="fog" args={['#172b32',28,85]}/>
@@ -112,11 +113,10 @@ function Oboro(){
     <Mobility game={game} comfort={comfort} m={m}/>
     {game.state.enemies.map((e,i)=><Ninja key={i} enemy={e} m={m} active={game.state.phase==='running'&&(game.state.mode!=='mission'||game.state.mission?.stage===5)} difficulty={game.state.difficulty}/>) }
     <Smoke state={game.state} m={m} send={game.send} now={()=>rt.clock().now()}/>
-    <Music game={game} sound={sound}/>
+    <Soundscape state={game.state} sound={sound} setSound={setSound} open={audioOpen} close={()=>setAudioOpen(false)}/>
     <SealBurst state={game.state}/>
     <Guide state={game.state} enabled={nav} pads={comfort||!rt.locomotion} onChange={setGoal}/>
-    {sound&&<SpatialSound src="garden.wav" position={[0,1,0]} volume={game.state.mode==='mission'&&(game.state.mission?.stage??0)<5?.12:.45} maxDistance={65} refDistance={15} loop/>}
-    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} goal={nav?goal:null} extra={<>{game.held>0&&game.state.phase==='running'&&<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>}<button data-testid="nav" onClick={()=>setNav(!nav)} style={{border:'1px solid #9f89585c',borderRadius:3,background:'#233c3cdd',color:'#e6dcc5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>{nav?'ナビ：入':'ナビ：切'}</button></>}/>}
+    {device!=='vr'&&<Hud game={game} comfort={comfort} setComfort={setComfort} sound={sound} setSound={setSound} help={help} setHelp={setHelp} visuals={visuals} setVisuals={setVisuals} goal={nav?goal:null} extra={<><button data-testid="audio-settings" onClick={()=>setAudioOpen(v=>!v)} style={{border:'1px solid #9f89585c',background:'#233c3cdd',color:'#e6dcc5',padding:'7px 10px',cursor:'pointer',fontSize:11}}>音量・曲</button>{game.held>0&&game.state.phase==='running'&&<button data-testid="smoke" onClick={()=>game.send('smoke:use')} style={{border:'1px solid #cfd6d8',borderRadius:3,background:'#3b4548',color:'#f1f4f5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>煙玉 ×{game.held} [B]</button>}<button data-testid="nav" onClick={()=>setNav(!nav)} style={{border:'1px solid #9f89585c',borderRadius:3,background:'#233c3cdd',color:'#e6dcc5',padding:'7px 10px',cursor:'pointer',fontFamily:'inherit',fontSize:11}}>{nav?'ナビ：入':'ナビ：切'}</button></>}/>}
   </>
 }
 function Button3D({text,position,onClick,material,width=1.1,rotation}:{text:string;position:V3;onClick:()=>void;material:T.Material;width?:number;rotation?:V3}){
@@ -321,14 +321,6 @@ function SealBurst({state:s}:{state:GameState}){
     dirs.forEach((d,i)=>a.setXYZ(i,origin.current.x+d.x*k,origin.current.y+d.y*k-t*t*.6,origin.current.z+d.z*k));a.needsUpdate=true
     const mat=p.material as T.PointsMaterial;mat.opacity=Math.max(0,1-t/1.4);mat.color.copy(tint.current)})
   return <points ref={ref} geometry={geo} frustumCulled={false} visible={false}><pointsMaterial size={.12} transparent depthWrite={false} toneMapped={false} blending={T.AdditiveBlending}/></points>
-}
-/** Taiko loop: calm in the lobby, faster as dawn nears, a heartbeat while a ninja is on you. */
-function Music({game:g,sound}:{game:Game;sound:boolean}){
-  const rt=useRuntime(),mood=useRef<Mood>({tempo:84,danger:false})
-  useFrame(()=>{const s=g.state,now=rt.clock().now(),left=s.phase==='running'?remaining(s,now):999,me=rt.self().peerId
-    mood.current={tempo:s.phase!=='running'?78:left<=60?150:left<=120?118:100,danger:s.phase==='running'&&s.enemies.some(e=>e.target===me&&e.mode!=='patrol')}})
-  useEffect(()=>{setCuesEnabled(sound);if(!sound)return;const l=rt.audioListener(),gain=l.context.createGain();gain.gain.value=.45;gain.connect(l.getInput());const t=new Taiko(l.context,gain,()=>mood.current);t.start();return()=>{t.stop();gain.disconnect()}},[sound,rt])
-  return null
 }
 /** Fade within the 3D scene after large positional jumps; works in both eyes in XR. */
 function ComfortCurtain({enabled}:{enabled:boolean}){

@@ -2,7 +2,7 @@
   "name": "oboro-ninja-yashiki",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -17,7 +17,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:client": "npm run dev -w @tentenv/client",
     "dev:world": "npm run dev -w @oboro/world",
-    "build": "npm run check:bake && npm run build -w @oboro/world",
+    "build": "npm run check:bake && npm run check:audio && npm run build -w @oboro/world",
     "pack": "npm run pack -w @oboro/world",
     "build:client": "npm run build -w @tentenv/client",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -28,7 +28,9 @@
     "bake": "node --import tsx scripts/bake-lighting.ts",
     "check:bake": "node --import tsx scripts/bake-lighting.ts --check",
     "test:lighting": "node tests/lighting.mjs",
-    "test:movement": "node tests/stealth-movement.mjs"
+    "test:movement": "node tests/stealth-movement.mjs",
+    "render:audio": "node --import tsx scripts/render-audio.ts",
+    "check:audio": "node --import tsx scripts/render-audio.ts --check"
   },
   "engines": {
     "node": ">=22.13"

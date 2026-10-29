@@ -22,6 +22,9 @@ for(const [from,to]of [
  ['dist-pages/LICENSE.txt','LICENSE.txt'],
  ['dist-pages/THIRD_PARTY_LICENSES.txt','THIRD_PARTY_LICENSES.txt'],
  ['docs/RELEASE_NOTES.md','RELEASE_NOTES.md'],
+ ['assets/audio-preview/oboro-music-preview.wav',`oboro-v${version}-music-preview.wav`],
+ ['assets/audio-preview/oboro-se-preview.wav',`oboro-v${version}-se-preview.wav`],
+ ['assets/audio-preview/AUDIO_PREVIEW.json','AUDIO_PREVIEW.json'],
 ]){cpSync(join(root,from),join(out,to));assets.push(to)}
 const releaseCaptures=[]
 const selected=screenshots.captures.filter(c=>c.releaseScene)

@@ -1,0 +1,1360 @@
+{
+  "license": "AGPL-3.0-only",
+  "source": "Original procedural synthesis and original note sequences; no sampled recordings or external AI service.",
+  "sampleRate": 22050,
+  "channels": 1,
+  "format": "PCM 16-bit WAV",
+  "validation": "Numeric full-loop peak/RMS/finite/seam checks. Not a human listening or physical speaker test.",
+  "tracks": [
+    {
+      "id": "explore",
+      "name": "月下の縁側",
+      "arrangement": "miyabi",
+      "seconds": 24.615374149659864,
+      "peak": 0.3915218412876129,
+      "rms": 0.04601875590613355,
+      "seam": 0,
+      "maxDelta": 0.06572899222373962,
+      "finite": true,
+      "sha256": "fe3c196170a9a87e2ff3dbd7cd4fb1378faa606e6c5be7fd38bce3e21be53d2c"
+    },
+    {
+      "id": "explore",
+      "name": "月下の縁側",
+      "arrangement": "kage",
+      "seconds": 24.615374149659864,
+      "peak": 0.38610175251960754,
+      "rms": 0.03584386630381532,
+      "seam": 0.000005999347195029259,
+      "maxDelta": 0.07887058891355991,
+      "finite": true,
+      "sha256": "6a730aec988cfa6751c71fe509c126e249790d73462523c8613601e1388b831b"
+    },
+    {
+      "id": "reflex",
+      "name": "三枚の影札",
+      "arrangement": "miyabi",
+      "seconds": 17.142857142857142,
+      "peak": 0.3702230453491211,
+      "rms": 0.05370015055020864,
+      "seam": 0.00016053416766226292,
+      "maxDelta": 0.07674172706902027,
+      "finite": true,
+      "sha256": "b852cdcd7cf30397622f367a64d017af9fb93c40069883311a8b5c1a93fdf262"
+    },
+    {
+      "id": "reflex",
+      "name": "三枚の影札",
+      "arrangement": "kage",
+      "seconds": 17.142857142857142,
+      "peak": 0.3759874105453491,
+      "rms": 0.043584405772129166,
+      "seam": 0.00004976056516170502,
+      "maxDelta": 0.0817691907286644,
+      "finite": true,
+      "sha256": "ce186147b998b825fa38f463ddd2dabce330a55d89ce17c026a98eeb35aafdf3"
+    },
+    {
+      "id": "jump",
+      "name": "飛燕の梁",
+      "arrangement": "miyabi",
+      "seconds": 16,
+      "peak": 0.3888179063796997,
+      "rms": 0.05413659696967745,
+      "seam": 0.0002148228813894093,
+      "maxDelta": 0.06048957910388708,
+      "finite": true,
+      "sha256": "521c58320435dc098cc4551e357a53a9479a0c0f0387ab9de16570f7b03c11ce"
+    },
+    {
+      "id": "jump",
+      "name": "飛燕の梁",
+      "arrangement": "kage",
+      "seconds": 16,
+      "peak": 0.39267128705978394,
+      "rms": 0.0451858947170925,
+      "seam": 0.00012621376663446426,
+      "maxDelta": 0.07628895854577422,
+      "finite": true,
+      "sha256": "7f906e6a7c0c5981bf792f30d7887264bfe0df18e5e562dab0b10bed892c4719"
+    },
+    {
+      "id": "water",
+      "name": "水底の灯",
+      "arrangement": "miyabi",
+      "seconds": 28.235283446712018,
+      "peak": 0.2500563859939575,
+      "rms": 0.08784958151083727,
+      "seam": 0.00007286970503628254,
+      "maxDelta": 0.04495902173221111,
+      "finite": true,
+      "sha256": "115e389f683a438e13a577a2b3db806858b925ab35f2c0a226cc4ce5e156351e"
+    },
+    {
+      "id": "water",
+      "name": "水底の灯",
+      "arrangement": "kage",
+      "seconds": 28.235283446712018,
+      "peak": 0.24979621171951294,
+      "rms": 0.08108457226205998,
+      "seam": 0.0028171828016638756,
+      "maxDelta": 0.036612133495509624,
+      "finite": true,
+      "sha256": "b8098826da66e896fd356d26f3fcc4bdab42d58f3d76c01fa586479582af6839"
+    },
+    {
+      "id": "void",
+      "name": "星を織る蔵",
+      "arrangement": "miyabi",
+      "seconds": 26.666666666666668,
+      "peak": 0.2303115874528885,
+      "rms": 0.0361277011274789,
+      "seam": 0,
+      "maxDelta": 0.05090847611427307,
+      "finite": true,
+      "sha256": "30b5c3d4c52a3b62b67c3aeb64fe552ce717812efdada47920ea06599a080c97"
+    },
+    {
+      "id": "void",
+      "name": "星を織る蔵",
+      "arrangement": "kage",
+      "seconds": 26.666666666666668,
+      "peak": 0.2303115874528885,
+      "rms": 0.03253954823660611,
+      "seam": 0.00003411201760172844,
+      "maxDelta": 0.04606563877314329,
+      "finite": true,
+      "sha256": "fed3f0e6b02b0f9ff1ab84f38087177d07a28e35170dace33ab2f49beed25c3b"
+    },
+    {
+      "id": "inverse",
+      "name": "裏月の回廊",
+      "arrangement": "miyabi",
+      "seconds": 20.86956916099773,
+      "peak": 0.3871956169605255,
+      "rms": 0.04959801668478065,
+      "seam": 0,
+      "maxDelta": 0.05150866508483887,
+      "finite": true,
+      "sha256": "8434062bcf11fc0ab3b9de8aa038ffb8c3dad0a5f5723feba638dabf7e8566b8"
+    },
+    {
+      "id": "inverse",
+      "name": "裏月の回廊",
+      "arrangement": "kage",
+      "seconds": 20.86956916099773,
+      "peak": 0.39812713861465454,
+      "rms": 0.0399220255957442,
+      "seam": 0.0001372185070067644,
+      "maxDelta": 0.06901638209819794,
+      "finite": true,
+      "sha256": "09fcd5374dff5db3a532075f3f03ad15c91ca204d34900e3b2936a89ffe74c56"
+    },
+    {
+      "id": "chase",
+      "name": "影走り",
+      "arrangement": "miyabi",
+      "seconds": 13.333333333333334,
+      "peak": 0.36370357871055603,
+      "rms": 0.059989835875307596,
+      "seam": 0.0006274941843003035,
+      "maxDelta": 0.0383602362126112,
+      "finite": true,
+      "sha256": "0d827f9338b9fffd21578b8425af48e9a1db447ab43626d69473a1ec8c2b7805"
+    },
+    {
+      "id": "chase",
+      "name": "影走り",
+      "arrangement": "kage",
+      "seconds": 13.333333333333334,
+      "peak": 0.3700734078884125,
+      "rms": 0.04881513254512573,
+      "seam": 0.0004730889049824327,
+      "maxDelta": 0.0637885183095932,
+      "finite": true,
+      "sha256": "7112b7a7629118d914b3a3ff3f331e9cc94a3b0650e707ed4371234565093178"
+    },
+    {
+      "id": "escape",
+      "name": "暁の門",
+      "arrangement": "miyabi",
+      "seconds": 19.2,
+      "peak": 0.38761913776397705,
+      "rms": 0.04869318442358972,
+      "seam": 0,
+      "maxDelta": 0.07497754553332925,
+      "finite": true,
+      "sha256": "377db8de14b45a644e43c5ec5dc145c6fa3b8369ae2d4931ebd82fdf8d4a9b2a"
+    },
+    {
+      "id": "escape",
+      "name": "暁の門",
+      "arrangement": "kage",
+      "seconds": 19.2,
+      "peak": 0.3789152204990387,
+      "rms": 0.039956303157824835,
+      "seam": 0.000040413811802864075,
+      "maxDelta": 0.10031430423259735,
+      "finite": true,
+      "sha256": "fa4183ced10a931e7c9100c5599781e836251b777a237879f35bb51a3f32e37a"
+    },
+    {
+      "id": "defeat",
+      "name": "霧の牢",
+      "arrangement": "miyabi",
+      "seconds": 30,
+      "peak": 0.2552872598171234,
+      "rms": 0.08673553488647054,
+      "seam": 0.0001870619598776102,
+      "maxDelta": 0.04232198745012283,
+      "finite": true,
+      "sha256": "825825a55b7aed6da7ced7c5516cfd94b1aa9625bee43af40d61af5076229d69"
+    },
+    {
+      "id": "defeat",
+      "name": "霧の牢",
+      "arrangement": "kage",
+      "seconds": 30,
+      "peak": 0.25005677342414856,
+      "rms": 0.08603197642928005,
+      "seam": 0.004560813307762146,
+      "maxDelta": 0.03309379518032074,
+      "finite": true,
+      "sha256": "f56cc10d6a70266813bc44a258f781906d99aebee5dd2659d5281554599d3549"
+    }
+  ],
+  "segments": [
+    {
+      "name": "explore:miyabi",
+      "start": 0,
+      "end": 4
+    },
+    {
+      "name": "explore:kage",
+      "start": 4,
+      "end": 8
+    },
+    {
+      "name": "reflex:miyabi",
+      "start": 8,
+      "end": 12
+    },
+    {
+      "name": "reflex:kage",
+      "start": 12,
+      "end": 16
+    },
+    {
+      "name": "jump:miyabi",
+      "start": 16,
+      "end": 20
+    },
+    {
+      "name": "jump:kage",
+      "start": 20,
+      "end": 24
+    },
+    {
+      "name": "water:miyabi",
+      "start": 24,
+      "end": 28
+    },
+    {
+      "name": "water:kage",
+      "start": 28,
+      "end": 32
+    },
+    {
+      "name": "void:miyabi",
+      "start": 32,
+      "end": 36
+    },
+    {
+      "name": "void:kage",
+      "start": 36,
+      "end": 40
+    },
+    {
+      "name": "inverse:miyabi",
+      "start": 40,
+      "end": 44
+    },
+    {
+      "name": "inverse:kage",
+      "start": 44,
+      "end": 48
+    },
+    {
+      "name": "chase:miyabi",
+      "start": 48,
+      "end": 52
+    },
+    {
+      "name": "chase:kage",
+      "start": 52,
+      "end": 56
+    },
+    {
+      "name": "escape:miyabi",
+      "start": 56,
+      "end": 60
+    },
+    {
+      "name": "escape:kage",
+      "start": 60,
+      "end": 64
+    },
+    {
+      "name": "defeat:miyabi",
+      "start": 64,
+      "end": 68
+    },
+    {
+      "name": "defeat:kage",
+      "start": 68,
+      "end": 72
+    }
+  ],
+  "effects": [
+    {
+      "cue": "seal",
+      "variant": 0,
+      "start": 0,
+      "peak": 0.43278494477272034,
+      "rms": 0.09406551880348879,
+      "seam": 0,
+      "maxDelta": 0.15875735133886337,
+      "finite": true
+    },
+    {
+      "cue": "seal",
+      "variant": 1,
+      "start": 1.26,
+      "peak": 0.4412403106689453,
+      "rms": 0.09408809385901358,
+      "seam": 0,
+      "maxDelta": 0.16932831518352032,
+      "finite": true
+    },
+    {
+      "cue": "seal",
+      "variant": 2,
+      "start": 2.52,
+      "peak": 0.4530680179595947,
+      "rms": 0.0940750137536666,
+      "seam": 0,
+      "maxDelta": 0.16853696526959538,
+      "finite": true
+    },
+    {
+      "cue": "seal",
+      "variant": 3,
+      "start": 3.7800000000000002,
+      "peak": 0.43574368953704834,
+      "rms": 0.09409663423286777,
+      "seam": 0,
+      "maxDelta": 0.17976991087198257,
+      "finite": true
+    },
+    {
+      "cue": "warp",
+      "variant": 0,
+      "start": 5.04,
+      "peak": 0.16637900471687317,
+      "rms": 0.046888842240752425,
+      "seam": 0,
+      "maxDelta": 0.12100952304899693,
+      "finite": true
+    },
+    {
+      "cue": "warp",
+      "variant": 1,
+      "start": 5.750022675736961,
+      "peak": 0.17034021019935608,
+      "rms": 0.04678845216651216,
+      "seam": 0,
+      "maxDelta": 0.11028142459690571,
+      "finite": true
+    },
+    {
+      "cue": "warp",
+      "variant": 2,
+      "start": 6.460045351473923,
+      "peak": 0.16158638894557953,
+      "rms": 0.046736748780325736,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "warp",
+      "variant": 3,
+      "start": 7.170068027210885,
+      "peak": 0.16596262156963348,
+      "rms": 0.046821611501270934,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "star",
+      "variant": 0,
+      "start": 7.880090702947847,
+      "peak": 0.3498198091983795,
+      "rms": 0.09183170107983812,
+      "seam": 0,
+      "maxDelta": 0.14638584107160568,
+      "finite": true
+    },
+    {
+      "cue": "star",
+      "variant": 1,
+      "start": 8.590113378684809,
+      "peak": 0.34736552834510803,
+      "rms": 0.09182452354113387,
+      "seam": 0,
+      "maxDelta": 0.1598569042980671,
+      "finite": true
+    },
+    {
+      "cue": "star",
+      "variant": 2,
+      "start": 9.30013605442177,
+      "peak": 0.32422786951065063,
+      "rms": 0.0919099581863019,
+      "seam": 0,
+      "maxDelta": 0.1642366237938404,
+      "finite": true
+    },
+    {
+      "cue": "star",
+      "variant": 3,
+      "start": 10.010158730158732,
+      "peak": 0.3481908142566681,
+      "rms": 0.09183200725553681,
+      "seam": 0,
+      "maxDelta": 0.15359129756689072,
+      "finite": true
+    },
+    {
+      "cue": "alert",
+      "variant": 0,
+      "start": 10.720181405895694,
+      "peak": 0.3191467225551605,
+      "rms": 0.06717216401330163,
+      "seam": 0,
+      "maxDelta": 0.05189855396747589,
+      "finite": true
+    },
+    {
+      "cue": "alert",
+      "variant": 1,
+      "start": 11.430204081632656,
+      "peak": 0.3128303587436676,
+      "rms": 0.06827829159033649,
+      "seam": 0,
+      "maxDelta": 0.05631536617875099,
+      "finite": true
+    },
+    {
+      "cue": "alert",
+      "variant": 2,
+      "start": 12.140226757369618,
+      "peak": 0.31878581643104553,
+      "rms": 0.06763322275791164,
+      "seam": 0,
+      "maxDelta": 0.05238110519712791,
+      "finite": true
+    },
+    {
+      "cue": "alert",
+      "variant": 3,
+      "start": 12.85024943310658,
+      "peak": 0.3083145320415497,
+      "rms": 0.06797444102534018,
+      "seam": 0,
+      "maxDelta": 0.04459589719772339,
+      "finite": true
+    },
+    {
+      "cue": "go",
+      "variant": 0,
+      "start": 13.560272108843542,
+      "peak": 0.2152174413204193,
+      "rms": 0.06565817430440901,
+      "seam": 0,
+      "maxDelta": 0.08465293608605862,
+      "finite": true
+    },
+    {
+      "cue": "go",
+      "variant": 1,
+      "start": 14.270294784580503,
+      "peak": 0.21463783085346222,
+      "rms": 0.06565808373113946,
+      "seam": 0,
+      "maxDelta": 0.09116279194131494,
+      "finite": true
+    },
+    {
+      "cue": "go",
+      "variant": 2,
+      "start": 14.980317460317465,
+      "peak": 0.21248158812522888,
+      "rms": 0.06565776536226006,
+      "seam": 0,
+      "maxDelta": 0.08707932010293007,
+      "finite": true
+    },
+    {
+      "cue": "go",
+      "variant": 3,
+      "start": 15.690340136054427,
+      "peak": 0.21545495092868805,
+      "rms": 0.06565783985258977,
+      "seam": 0,
+      "maxDelta": 0.09018171206116676,
+      "finite": true
+    },
+    {
+      "cue": "tick",
+      "variant": 0,
+      "start": 16.40036281179139,
+      "peak": 0.1983305960893631,
+      "rms": 0.018952352968833963,
+      "seam": 0,
+      "maxDelta": 0.028752636164426804,
+      "finite": true
+    },
+    {
+      "cue": "tick",
+      "variant": 1,
+      "start": 17.11038548752835,
+      "peak": 0.19962768256664276,
+      "rms": 0.01897859472420071,
+      "seam": 0,
+      "maxDelta": 0.030771851539611816,
+      "finite": true
+    },
+    {
+      "cue": "tick",
+      "variant": 2,
+      "start": 17.820408163265313,
+      "peak": 0.19894540309906006,
+      "rms": 0.01896417155469863,
+      "seam": 0,
+      "maxDelta": 0.02941625309176743,
+      "finite": true
+    },
+    {
+      "cue": "tick",
+      "variant": 3,
+      "start": 18.530430839002275,
+      "peak": 0.19926559925079346,
+      "rms": 0.01897300169224079,
+      "seam": 0,
+      "maxDelta": 0.030087305698543787,
+      "finite": true
+    },
+    {
+      "cue": "coin",
+      "variant": 0,
+      "start": 19.240453514739237,
+      "peak": 0.35225337743759155,
+      "rms": 0.09187334890743945,
+      "seam": 0,
+      "maxDelta": 0.24166424572467804,
+      "finite": true
+    },
+    {
+      "cue": "coin",
+      "variant": 1,
+      "start": 19.9504761904762,
+      "peak": 0.3515488803386688,
+      "rms": 0.09184213398264499,
+      "seam": 0,
+      "maxDelta": 0.25118544697761536,
+      "finite": true
+    },
+    {
+      "cue": "coin",
+      "variant": 2,
+      "start": 20.66049886621316,
+      "peak": 0.32753950357437134,
+      "rms": 0.0918638265298456,
+      "seam": 0,
+      "maxDelta": 0.22648309171199799,
+      "finite": true
+    },
+    {
+      "cue": "coin",
+      "variant": 3,
+      "start": 21.370521541950122,
+      "peak": 0.34184226393699646,
+      "rms": 0.09185330021521053,
+      "seam": 0,
+      "maxDelta": 0.238140270113945,
+      "finite": true
+    },
+    {
+      "cue": "smoke",
+      "variant": 0,
+      "start": 22.080544217687084,
+      "peak": 0.15643686056137085,
+      "rms": 0.013709413607759006,
+      "seam": 0,
+      "maxDelta": 0.12100952304899693,
+      "finite": true
+    },
+    {
+      "cue": "smoke",
+      "variant": 1,
+      "start": 22.790566893424046,
+      "peak": 0.1634572595357895,
+      "rms": 0.014111341032051057,
+      "seam": 0,
+      "maxDelta": 0.11028142459690571,
+      "finite": true
+    },
+    {
+      "cue": "smoke",
+      "variant": 2,
+      "start": 23.500589569161008,
+      "peak": 0.16158638894557953,
+      "rms": 0.013823099456238759,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "smoke",
+      "variant": 3,
+      "start": 24.21061224489797,
+      "peak": 0.16596262156963348,
+      "rms": 0.013798383041787828,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "swing",
+      "variant": 0,
+      "start": 24.92063492063493,
+      "peak": 0.15643686056137085,
+      "rms": 0.013709413607759006,
+      "seam": 0,
+      "maxDelta": 0.12100952304899693,
+      "finite": true
+    },
+    {
+      "cue": "swing",
+      "variant": 1,
+      "start": 25.630657596371893,
+      "peak": 0.1634572595357895,
+      "rms": 0.014111341032051057,
+      "seam": 0,
+      "maxDelta": 0.11028142459690571,
+      "finite": true
+    },
+    {
+      "cue": "swing",
+      "variant": 2,
+      "start": 26.340680272108855,
+      "peak": 0.16158638894557953,
+      "rms": 0.013823099456238759,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "swing",
+      "variant": 3,
+      "start": 27.050702947845817,
+      "peak": 0.16596262156963348,
+      "rms": 0.013798383041787828,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "hit",
+      "variant": 0,
+      "start": 27.76072562358278,
+      "peak": 0.27758586406707764,
+      "rms": 0.05524453963369049,
+      "seam": 0,
+      "maxDelta": 0.03129670023918152,
+      "finite": true
+    },
+    {
+      "cue": "hit",
+      "variant": 1,
+      "start": 28.47074829931974,
+      "peak": 0.28214097023010254,
+      "rms": 0.05513023256699556,
+      "seam": 0,
+      "maxDelta": 0.03445899859070778,
+      "finite": true
+    },
+    {
+      "cue": "hit",
+      "variant": 2,
+      "start": 29.180770975056703,
+      "peak": 0.2790725529193878,
+      "rms": 0.055182595528784344,
+      "seam": 0,
+      "maxDelta": 0.032766193151474,
+      "finite": true
+    },
+    {
+      "cue": "hit",
+      "variant": 3,
+      "start": 29.890793650793665,
+      "peak": 0.2806914150714874,
+      "rms": 0.05507183035062892,
+      "seam": 0,
+      "maxDelta": 0.03175504133105278,
+      "finite": true
+    },
+    {
+      "cue": "hurt",
+      "variant": 0,
+      "start": 30.600816326530627,
+      "peak": 0.24453376233577728,
+      "rms": 0.05472394621969225,
+      "seam": 0,
+      "maxDelta": 0.03067515790462494,
+      "finite": true
+    },
+    {
+      "cue": "hurt",
+      "variant": 1,
+      "start": 31.31083900226759,
+      "peak": 0.273207426071167,
+      "rms": 0.055946512968473326,
+      "seam": 0,
+      "maxDelta": 0.03095214068889618,
+      "finite": true
+    },
+    {
+      "cue": "hurt",
+      "variant": 2,
+      "start": 32.02086167800455,
+      "peak": 0.2514074444770813,
+      "rms": 0.05524952542314964,
+      "seam": 0,
+      "maxDelta": 0.033228859305381775,
+      "finite": true
+    },
+    {
+      "cue": "hurt",
+      "variant": 3,
+      "start": 32.73088435374151,
+      "peak": 0.24762538075447083,
+      "rms": 0.05563704426943398,
+      "seam": 0,
+      "maxDelta": 0.03184574097394943,
+      "finite": true
+    },
+    {
+      "cue": "success",
+      "variant": 0,
+      "start": 33.44090702947847,
+      "peak": 0.43278494477272034,
+      "rms": 0.09406551880348879,
+      "seam": 0,
+      "maxDelta": 0.15875735133886337,
+      "finite": true
+    },
+    {
+      "cue": "success",
+      "variant": 1,
+      "start": 34.700907029478465,
+      "peak": 0.4412403106689453,
+      "rms": 0.09408809385901358,
+      "seam": 0,
+      "maxDelta": 0.16932831518352032,
+      "finite": true
+    },
+    {
+      "cue": "success",
+      "variant": 2,
+      "start": 35.96090702947846,
+      "peak": 0.4530680179595947,
+      "rms": 0.0940750137536666,
+      "seam": 0,
+      "maxDelta": 0.16853696526959538,
+      "finite": true
+    },
+    {
+      "cue": "success",
+      "variant": 3,
+      "start": 37.22090702947846,
+      "peak": 0.43574368953704834,
+      "rms": 0.09409663423286777,
+      "seam": 0,
+      "maxDelta": 0.17976991087198257,
+      "finite": true
+    },
+    {
+      "cue": "failure",
+      "variant": 0,
+      "start": 38.48090702947846,
+      "peak": 0.3191467225551605,
+      "rms": 0.049439894212264746,
+      "seam": 0,
+      "maxDelta": 0.05189855396747589,
+      "finite": true
+    },
+    {
+      "cue": "failure",
+      "variant": 1,
+      "start": 39.74090702947846,
+      "peak": 0.3128303587436676,
+      "rms": 0.050253969781164386,
+      "seam": 0,
+      "maxDelta": 0.05631536617875099,
+      "finite": true
+    },
+    {
+      "cue": "failure",
+      "variant": 2,
+      "start": 41.000907029478455,
+      "peak": 0.31878581643104553,
+      "rms": 0.04977921875720653,
+      "seam": 0,
+      "maxDelta": 0.05238110519712791,
+      "finite": true
+    },
+    {
+      "cue": "failure",
+      "variant": 3,
+      "start": 42.26090702947845,
+      "peak": 0.3083145320415497,
+      "rms": 0.05003034493475877,
+      "seam": 0,
+      "maxDelta": 0.04459589719772339,
+      "finite": true
+    },
+    {
+      "cue": "door",
+      "variant": 0,
+      "start": 43.52090702947845,
+      "peak": 0.1876336634159088,
+      "rms": 0.017887921422288896,
+      "seam": 0,
+      "maxDelta": 0.12100952304899693,
+      "finite": true
+    },
+    {
+      "cue": "door",
+      "variant": 1,
+      "start": 44.78090702947845,
+      "peak": 0.17879541218280792,
+      "rms": 0.01803543279097153,
+      "seam": 0,
+      "maxDelta": 0.11028142459690571,
+      "finite": true
+    },
+    {
+      "cue": "door",
+      "variant": 2,
+      "start": 46.04090702947845,
+      "peak": 0.17120040953159332,
+      "rms": 0.01794277819757979,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "door",
+      "variant": 3,
+      "start": 47.300907029478445,
+      "peak": 0.16596262156963348,
+      "rms": 0.017963461114076165,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "step-sand",
+      "variant": 0,
+      "start": 48.56090702947844,
+      "peak": 0.15643686056137085,
+      "rms": 0.015710240308830312,
+      "seam": 0,
+      "maxDelta": 0.13022355549037457,
+      "finite": true
+    },
+    {
+      "cue": "step-sand",
+      "variant": 1,
+      "start": 49.2709297052154,
+      "peak": 0.1634572595357895,
+      "rms": 0.015970327588908005,
+      "seam": 0,
+      "maxDelta": 0.11242810543626547,
+      "finite": true
+    },
+    {
+      "cue": "step-sand",
+      "variant": 2,
+      "start": 49.98095238095236,
+      "peak": 0.16158638894557953,
+      "rms": 0.01607387525288782,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "step-sand",
+      "variant": 3,
+      "start": 50.69097505668932,
+      "peak": 0.16596262156963348,
+      "rms": 0.015601271636599323,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "step-stone",
+      "variant": 0,
+      "start": 51.400997732426276,
+      "peak": 0.2802746891975403,
+      "rms": 0.029030236138760882,
+      "seam": 0,
+      "maxDelta": 0.02780658204574138,
+      "finite": true
+    },
+    {
+      "cue": "step-stone",
+      "variant": 1,
+      "start": 52.111020408163235,
+      "peak": 0.28357142210006714,
+      "rms": 0.029124444500688233,
+      "seam": 0,
+      "maxDelta": 0.029867793899029493,
+      "finite": true
+    },
+    {
+      "cue": "step-stone",
+      "variant": 2,
+      "start": 52.82104308390019,
+      "peak": 0.28153371810913086,
+      "rms": 0.029062388347746184,
+      "seam": 0,
+      "maxDelta": 0.028480094857513905,
+      "finite": true
+    },
+    {
+      "cue": "step-stone",
+      "variant": 3,
+      "start": 53.53106575963715,
+      "peak": 0.28267279267311096,
+      "rms": 0.02909387175177448,
+      "seam": 0,
+      "maxDelta": 0.029163240455091,
+      "finite": true
+    },
+    {
+      "cue": "step-wood",
+      "variant": 0,
+      "start": 54.24108843537411,
+      "peak": 0.23528189957141876,
+      "rms": 0.028489848274656088,
+      "seam": 0,
+      "maxDelta": 0.012886520940810442,
+      "finite": true
+    },
+    {
+      "cue": "step-wood",
+      "variant": 1,
+      "start": 54.95111111111107,
+      "peak": 0.24083204567432404,
+      "rms": 0.0285314529355284,
+      "seam": 0,
+      "maxDelta": 0.013992946362122893,
+      "finite": true
+    },
+    {
+      "cue": "step-wood",
+      "variant": 2,
+      "start": 55.661133786848026,
+      "peak": 0.23722784221172333,
+      "rms": 0.028505183881546325,
+      "seam": 0,
+      "maxDelta": 0.01325408136472106,
+      "finite": true
+    },
+    {
+      "cue": "step-wood",
+      "variant": 3,
+      "start": 56.371156462584985,
+      "peak": 0.23905766010284424,
+      "rms": 0.028519026010334243,
+      "seam": 0,
+      "maxDelta": 0.013625254738144577,
+      "finite": true
+    },
+    {
+      "cue": "step-tatami",
+      "variant": 0,
+      "start": 57.08117913832194,
+      "peak": 0.15643686056137085,
+      "rms": 0.013681693832101207,
+      "seam": 0,
+      "maxDelta": 0.12100952304899693,
+      "finite": true
+    },
+    {
+      "cue": "step-tatami",
+      "variant": 1,
+      "start": 57.7912018140589,
+      "peak": 0.1634572595357895,
+      "rms": 0.01408553634472396,
+      "seam": 0,
+      "maxDelta": 0.11028142459690571,
+      "finite": true
+    },
+    {
+      "cue": "step-tatami",
+      "variant": 2,
+      "start": 58.50122448979586,
+      "peak": 0.16158638894557953,
+      "rms": 0.013794397444258014,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "step-tatami",
+      "variant": 3,
+      "start": 59.21124716553282,
+      "peak": 0.16596262156963348,
+      "rms": 0.013769878325761929,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "step-water",
+      "variant": 0,
+      "start": 59.921269841269776,
+      "peak": 0.15643686056137085,
+      "rms": 0.015710240308830312,
+      "seam": 0,
+      "maxDelta": 0.13022355549037457,
+      "finite": true
+    },
+    {
+      "cue": "step-water",
+      "variant": 1,
+      "start": 60.631292517006734,
+      "peak": 0.1634572595357895,
+      "rms": 0.015970327588908005,
+      "seam": 0,
+      "maxDelta": 0.11242810543626547,
+      "finite": true
+    },
+    {
+      "cue": "step-water",
+      "variant": 2,
+      "start": 61.34131519274369,
+      "peak": 0.16158638894557953,
+      "rms": 0.01607387525288782,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "step-water",
+      "variant": 3,
+      "start": 62.05133786848065,
+      "peak": 0.16596262156963348,
+      "rms": 0.015601271636599323,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "step-magic",
+      "variant": 0,
+      "start": 62.76136054421761,
+      "peak": 0.15643686056137085,
+      "rms": 0.013681693832101207,
+      "seam": 0,
+      "maxDelta": 0.12100952304899693,
+      "finite": true
+    },
+    {
+      "cue": "step-magic",
+      "variant": 1,
+      "start": 63.47138321995457,
+      "peak": 0.1634572595357895,
+      "rms": 0.01408553634472396,
+      "seam": 0,
+      "maxDelta": 0.11028142459690571,
+      "finite": true
+    },
+    {
+      "cue": "step-magic",
+      "variant": 2,
+      "start": 64.18140589569153,
+      "peak": 0.16158638894557953,
+      "rms": 0.013794397444258014,
+      "seam": 0,
+      "maxDelta": 0.11905378196388483,
+      "finite": true
+    },
+    {
+      "cue": "step-magic",
+      "variant": 3,
+      "start": 64.89142857142849,
+      "peak": 0.16596262156963348,
+      "rms": 0.013769878325761929,
+      "seam": 0,
+      "maxDelta": 0.10931900888681412,
+      "finite": true
+    },
+    {
+      "cue": "land-sand",
+      "variant": 0,
+      "start": 65.60145124716546,
+      "peak": 0.30120763182640076,
+      "rms": 0.04827791605333448,
+      "seam": 0,
+      "maxDelta": 0.1919034719467163,
+      "finite": true
+    },
+    {
+      "cue": "land-sand",
+      "variant": 1,
+      "start": 66.16145124716546,
+      "peak": 0.31318068504333496,
+      "rms": 0.04852614479200993,
+      "seam": 0,
+      "maxDelta": 0.16030686488375068,
+      "finite": true
+    },
+    {
+      "cue": "land-sand",
+      "variant": 2,
+      "start": 66.72145124716546,
+      "peak": 0.310142457485199,
+      "rms": 0.048229282010730595,
+      "seam": 0,
+      "maxDelta": 0.17198149673640728,
+      "finite": true
+    },
+    {
+      "cue": "land-sand",
+      "variant": 3,
+      "start": 67.28145124716546,
+      "peak": 0.2976367473602295,
+      "rms": 0.04743891485237084,
+      "seam": 0,
+      "maxDelta": 0.15774600580334663,
+      "finite": true
+    },
+    {
+      "cue": "land-stone",
+      "variant": 0,
+      "start": 67.84145124716547,
+      "peak": 0.4331490695476532,
+      "rms": 0.06162597233702031,
+      "seam": 0,
+      "maxDelta": 0.047937444411218166,
+      "finite": true
+    },
+    {
+      "cue": "land-stone",
+      "variant": 1,
+      "start": 68.40145124716547,
+      "peak": 0.4438740313053131,
+      "rms": 0.061903500234808936,
+      "seam": 0,
+      "maxDelta": 0.04753407835960388,
+      "finite": true
+    },
+    {
+      "cue": "land-stone",
+      "variant": 2,
+      "start": 68.96145124716547,
+      "peak": 0.4390964210033417,
+      "rms": 0.061705916354398246,
+      "seam": 0,
+      "maxDelta": 0.05017024278640747,
+      "finite": true
+    },
+    {
+      "cue": "land-stone",
+      "variant": 3,
+      "start": 69.52145124716547,
+      "peak": 0.4338371455669403,
+      "rms": 0.06181408013030911,
+      "seam": 0,
+      "maxDelta": 0.05100224167108536,
+      "finite": true
+    },
+    {
+      "cue": "land-wood",
+      "variant": 0,
+      "start": 70.08145124716548,
+      "peak": 0.44262656569480896,
+      "rms": 0.061825515431868296,
+      "seam": 0,
+      "maxDelta": 0.03854839690029621,
+      "finite": true
+    },
+    {
+      "cue": "land-wood",
+      "variant": 1,
+      "start": 70.64145124716548,
+      "peak": 0.4378754198551178,
+      "rms": 0.061562835755813027,
+      "seam": 0,
+      "maxDelta": 0.036913410760462284,
+      "finite": true
+    },
+    {
+      "cue": "land-wood",
+      "variant": 2,
+      "start": 71.20145124716548,
+      "peak": 0.4462142884731293,
+      "rms": 0.061734325492470085,
+      "seam": 0,
+      "maxDelta": 0.0389183908700943,
+      "finite": true
+    },
+    {
+      "cue": "land-wood",
+      "variant": 3,
+      "start": 71.76145124716548,
+      "peak": 0.44181153178215027,
+      "rms": 0.06164353095831788,
+      "seam": 0,
+      "maxDelta": 0.03686842322349548,
+      "finite": true
+    },
+    {
+      "cue": "land-tatami",
+      "variant": 0,
+      "start": 72.32145124716548,
+      "peak": 0.30120763182640076,
+      "rms": 0.0469803507979255,
+      "seam": 0,
+      "maxDelta": 0.17449277266860008,
+      "finite": true
+    },
+    {
+      "cue": "land-tatami",
+      "variant": 1,
+      "start": 72.88145124716549,
+      "peak": 0.31318068504333496,
+      "rms": 0.04713118372475192,
+      "seam": 0,
+      "maxDelta": 0.15921171754598618,
+      "finite": true
+    },
+    {
+      "cue": "land-tatami",
+      "variant": 2,
+      "start": 73.44145124716549,
+      "peak": 0.2952961325645447,
+      "rms": 0.04612878198650211,
+      "seam": 0,
+      "maxDelta": 0.17198149673640728,
+      "finite": true
+    },
+    {
+      "cue": "land-tatami",
+      "variant": 3,
+      "start": 74.00145124716549,
+      "peak": 0.2976367473602295,
+      "rms": 0.04701875880953595,
+      "seam": 0,
+      "maxDelta": 0.15774600580334663,
+      "finite": true
+    },
+    {
+      "cue": "land-water",
+      "variant": 0,
+      "start": 74.5614512471655,
+      "peak": 0.30120763182640076,
+      "rms": 0.04827791605333448,
+      "seam": 0,
+      "maxDelta": 0.1919034719467163,
+      "finite": true
+    },
+    {
+      "cue": "land-water",
+      "variant": 1,
+      "start": 75.1214512471655,
+      "peak": 0.31318068504333496,
+      "rms": 0.04852614479200993,
+      "seam": 0,
+      "maxDelta": 0.16030686488375068,
+      "finite": true
+    },
+    {
+      "cue": "land-water",
+      "variant": 2,
+      "start": 75.6814512471655,
+      "peak": 0.310142457485199,
+      "rms": 0.048229282010730595,
+      "seam": 0,
+      "maxDelta": 0.17198149673640728,
+      "finite": true
+    },
+    {
+      "cue": "land-water",
+      "variant": 3,
+      "start": 76.2414512471655,
+      "peak": 0.2976367473602295,
+      "rms": 0.04743891485237084,
+      "seam": 0,
+      "maxDelta": 0.15774600580334663,
+      "finite": true
+    },
+    {
+      "cue": "land-magic",
+      "variant": 0,
+      "start": 76.8014512471655,
+      "peak": 0.30120763182640076,
+      "rms": 0.0469803507979255,
+      "seam": 0,
+      "maxDelta": 0.17449277266860008,
+      "finite": true
+    },
+    {
+      "cue": "land-magic",
+      "variant": 1,
+      "start": 77.3614512471655,
+      "peak": 0.31318068504333496,
+      "rms": 0.04713118372475192,
+      "seam": 0,
+      "maxDelta": 0.15921171754598618,
+      "finite": true
+    },
+    {
+      "cue": "land-magic",
+      "variant": 2,
+      "start": 77.9214512471655,
+      "peak": 0.2952961325645447,
+      "rms": 0.04612878198650211,
+      "seam": 0,
+      "maxDelta": 0.17198149673640728,
+      "finite": true
+    },
+    {
+      "cue": "land-magic",
+      "variant": 3,
+      "start": 78.48145124716551,
+      "peak": 0.2976367473602295,
+      "rms": 0.04701875880953595,
+      "seam": 0,
+      "maxDelta": 0.15774600580334663,
+      "finite": true
+    }
+  ]
+}
